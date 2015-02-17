@@ -83,6 +83,8 @@ namespace WeedKiller2._0
 
         #endregion
 
+        #region Start & Stop Capture
+
         public void start()
         {
             camera.StartCapture();
@@ -93,12 +95,18 @@ namespace WeedKiller2._0
             camera.StopCapture();
         }
 
+        #endregion
+
+        #region GetImage
+
         public Image<Bgr, Byte> getImage()
         {
             camera.RetrieveBuffer(rawImage);
             rawImage.Convert(PixelFormat.PixelFormatBgr, convertedImage);
             return new Image<Bgr, Byte>(convertedImage.bitmap);
         }
+
+        #endregion
 
         #region Exposure Initialisation & Methods
 
@@ -251,6 +259,8 @@ namespace WeedKiller2._0
 
         #endregion
 
+        #region Temperature Initialisation & Methods
+
         public void enableTemperature()
         {
             temperature.onOff = true;
@@ -263,5 +273,17 @@ namespace WeedKiller2._0
             temperature.onOff = false;
             camera.SetProperty(temperature);
         }
+
+        #endregion
+
+        #region Static Methods
+
+        public static int GetNumberOfCameras()
+        {
+            ManagedBusManager busManager = new ManagedBusManager();
+            return (int)busManager.GetNumOfCameras();
+        }
+
+        #endregion
     }
 }

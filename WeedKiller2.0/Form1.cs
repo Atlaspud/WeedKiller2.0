@@ -30,6 +30,22 @@ namespace WeedKiller2._0
         // Sprayer constants
         //private const string SPRAYER_RELAY_PORT = "COM4";
 
+        // Vision
+        private static readonly uint[] SerialNumbers = new uint[8]
+        {
+            13421033,
+            13421041,
+            13421043,
+            13421046,
+            13421051,
+            13421053,
+            13421056,
+            13421057
+        };
+
+        private Dictionary<uint, Camera> cameras;
+        private int cameraCount;
+
         #endregion
 
         #region Main Initilisation
@@ -37,16 +53,43 @@ namespace WeedKiller2._0
         public Form1()
         {
             InitializeComponent();
-            InitialiseMotion();
+            initialiseMotion();
+            initiliseVision();
             //initilaiseSprayer();
             UpdateChart(currentPosition);
             AppendLine("" + currentPosition.getXPosition());
         }
 
-        private void InitialiseMotion()
+        private void initialiseMotion()
         {
             currentPosition = new Position(0, 0);
             motionController = new Motion(WSS_SERIAL_PORT, IMU_SERIAL_PORT);
+        }
+
+        // find number of cameras connected
+        // setup cameras and add to array
+
+        private void initiliseVision()
+        {
+            cameraCount = Camera.GetNumberOfCameras();
+
+            if (cameraCount != 0)
+            {
+                AppendLine("Cameras Found: " + cameraCount);
+                cameras = new Dictionary<uint, Camera>(cameraCount);
+                for (int i = 0; i < cameraCount; i++)
+                {
+                    cameras.Add(SerialNumbers[i], new Camera(SerialNumbers[i]));
+                }
+            }
+            else
+            {
+                MessageBox.Show("The ethernet bus manager has failed to find the camera(s). Ensure the camera(s) are connected and correctly configured.",
+                    "Error",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error,
+                    MessageBoxDefaultButton.Button1);
+            }
         }
 
         //private void initialiseSprayer()
@@ -83,6 +126,10 @@ namespace WeedKiller2._0
             stop = false;
             motionThread = new Thread(getMotion);
             motionThread.Start();
+            for (int i = 0; i < cameraCount; i++)
+            {
+
+            }
         }
 
         public void stopSystem()
@@ -112,9 +159,6 @@ namespace WeedKiller2._0
             {
                 currentPosition = motionController.run();
                 UpdateChart(currentPosition);
-                AppendLine("x: " + currentPosition.getXPosition() + " y: " + currentPosition.getYPosition());
-
-
                 Thread.Sleep(5);
             }
         }
