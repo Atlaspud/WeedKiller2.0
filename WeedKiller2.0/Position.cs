@@ -63,6 +63,11 @@ namespace WeedKiller2._0
             return yaw;
         }
 
+        public Position clone()
+        {
+            return new Position(this.xPosition, this.yPosition);
+        }
+
         static public Boolean isPositionWithinLimits(double xMin, double xMax, double yMin, double yMax, Position position)
         {
             if (((position.getXPosition() < xMax) & (position.getXPosition() > xMin))

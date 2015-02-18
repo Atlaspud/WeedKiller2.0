@@ -1,4 +1,6 @@
-﻿using System;
+﻿using Emgu.CV;
+using Emgu.CV.Structure;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
@@ -16,6 +18,7 @@ namespace WeedKiller2._0
         #region Global Variables
 
         // Motion constants
+        private const float DISTANCE_TRAVELLED_THRESHOLD = 0.256f; // image size which is 25.6cm x 20.48cm
         private const string WSS_SERIAL_PORT = "COM4";
         private const string IMU_SERIAL_PORT = "COM15";
 
@@ -25,6 +28,7 @@ namespace WeedKiller2._0
 
         // Motion Volatiles
         private volatile Position currentPosition;
+        private volatile Position lastImageCapturedPosition;
         private volatile bool stop = false;
 
         // Sprayer constants
@@ -75,7 +79,7 @@ namespace WeedKiller2._0
 
             if (cameraCount != 0)
             {
-                AppendLine("Cameras Found: " + cameraCount);
+                AppendLine(String.Format("Cameras Found: {0}", cameraCount));
                 cameras = new Dictionary<uint, Camera>(cameraCount);
                 for (int i = 0; i < cameraCount; i++)
                 {
@@ -124,18 +128,22 @@ namespace WeedKiller2._0
             currentPosition = new Position(0, 0);
             changeView(false);
             stop = false;
-            motionThread = new Thread(getMotion);
-            motionThread.Start();
             for (int i = 0; i < cameraCount; i++)
             {
-
+                cameras[SerialNumbers[i]].start();
             }
+            motionThread = new Thread(getMotion);
+            motionThread.Start();
         }
 
         public void stopSystem()
         {
             stop = true;
             changeView(true);
+            for (int i = 0; i < cameraCount; i++)
+            {
+                cameras[SerialNumbers[i]].stop();
+            }
         }
 
         public void changeView(Boolean yesOrNo)
@@ -154,13 +162,45 @@ namespace WeedKiller2._0
 
         public void getMotion()
         {
-            Position currentPosition;
             while (!stop)
             {
                 currentPosition = motionController.run();
                 UpdateChart(currentPosition);
+                // Testing Camera
+                checkForNewImage();
+                //
                 Thread.Sleep(5);
             }
+        }
+
+        public void checkForNewImage()
+        {
+            if (lastImageCapturedPosition != null)
+            {
+                double xDiff = currentPosition.getXPosition() - lastImageCapturedPosition.getXPosition();
+                double yDiff = currentPosition.getYPosition() - lastImageCapturedPosition.getYPosition();
+                if (DISTANCE_TRAVELLED_THRESHOLD <= Math.Sqrt(Math.Pow(xDiff, 2) + Math.Pow(yDiff, 2)))
+                {
+                    lastImageCapturedPosition = currentPosition.clone();
+                    new Thread(processImage).Start();
+                }
+            }
+            else
+            {
+                lastImageCapturedPosition = currentPosition.clone();
+                new Thread(processImage).Start();
+            }
+        }
+
+        public void processImage()
+        {
+            List<Image<Bgr, Byte>> cameraImages = new List<Image<Bgr, byte>>();
+            for (int i = 0; i < cameraCount; i++)
+            {
+                cameraImages.Add(cameras[SerialNumbers[0]].getImage());
+                AppendLine(String.Format("Camera {0} Image Captured", SerialNumbers[i]));
+            }
+            cameraPictureBox.Image = cameraImages[0].Bitmap;
         }
 
         #endregion
