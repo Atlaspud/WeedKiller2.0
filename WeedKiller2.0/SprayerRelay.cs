@@ -11,24 +11,20 @@ namespace WeedKiller2._0
 {
     class SprayerRelay
     {
+        // Serial Port Constants
+        private const int BAUD_RATE = 57600;
+        private const Parity PARITY = Parity.None;
+        private const int DATA_BITS = 8;
+        private const StopBits STOP_BITS = StopBits.One;
+
+        //Serial Port Variables
         private SerialPort serialPort;
         private string port;
-        private int baudRate;
-        private Parity parity;
-        private int dataBits;
-        private StopBits stopBits;
 
         public SprayerRelay(String port)
         {
-            //Serial Port Config
             this.port = port;
-            baudRate = 57600;
-            parity = Parity.None;
-            dataBits = 8;
-            stopBits = StopBits.One;
-
-            //Serial Port Config
-            serialPort = new SerialPort(port, baudRate, parity, dataBits, stopBits);
+            serialPort = new SerialPort(port, BAUD_RATE, PARITY, DATA_BITS, STOP_BITS);
 
         }
 
@@ -69,7 +65,6 @@ namespace WeedKiller2._0
             transmit(sprayerSerialNumber.ToString() + '\n');
         }
 
-
         private void transmit(string stringToWrite)
         {
             try
@@ -80,28 +75,6 @@ namespace WeedKiller2._0
             {
                 MessageBox.Show(e.Message + e.StackTrace, "Error", MessageBoxButtons.OK);
             }
-
         }
-
-
-
-
-        //private void receive(byte read_bytes)
-        //{
-        //    byte x;
-
-        //    for (x = 0; x < read_bytes; x++)       // this will call the read function for the passed number times, 
-        //    {                                      // this way it ensures each byte has been correctly recieved while
-        //        try                                // still using timeouts
-        //        {
-        //            serialPort.Read(serBuf, x, 1);     // retrieves 1 byte at a time and places in SerBuf at position x
-        //        }
-        //        catch (Exception)                   // timeout or other error occured, set lost comms indicator
-        //        {
-        //            serBuf[0] = 255;
-        //            MessageBox.Show("read fail");
-        //        }
-        //    }
-        //}
     }
 }

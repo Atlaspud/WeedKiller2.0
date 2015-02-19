@@ -8,6 +8,8 @@ namespace WeedKiller2._0
 {
     class Sprayer
     {
+        #region Global Variables
+
         private SprayerRelay sprayerRelay;
         private volatile Position[] sprayerPositions;
         private volatile Position currentPosition;
@@ -18,12 +20,39 @@ namespace WeedKiller2._0
 
         private List<Task> sprayingList = new List<Task>();
 
+        #endregion
+
+        #region Default Constructor
+
         public Sprayer(String sprayerRelayPort)
         {
             sprayerRelay = new SprayerRelay(sprayerRelayPort);
             currentPosition = new Position(0, 0);
             sprayerPositions = Position.CalculateGlobalSprayerPositions(currentPosition);
         }
+
+        #endregion
+
+        #region Sprayer Start & Stop Methods
+
+        public String startSensors()
+        {
+            String status = "Good";
+            if (sprayerRelay.initConnection() != "Good")
+            {
+                status = "Bad";
+            }
+            return status;
+        }
+
+        public void stopSensors()
+        {
+            sprayerRelay.closeConnection();
+        }
+
+        #endregion
+
+        #region Sprayer Methods
 
         public void addTarget(Target target)
         {
@@ -50,7 +79,8 @@ namespace WeedKiller2._0
             }
         }
 
-        //Create a function that will go through all the targets and check if any of the sprayers need to be turned on. At the end of the function call a new task that turns on the sprayers for the required period of time then ends.
+        // Create a function that will go through all the targets and check if any of the sprayers need to be turned on. 
+        // At the end of the function call a new task that turns on the sprayers for the required period of time then ends.
         public void checkTargetLocations()
         {
             if (targetArray.Count() != 0)
@@ -112,25 +142,12 @@ namespace WeedKiller2._0
             }
         }
 
-        public String startSensors()
-        {
-            String status = "Good";
-            if (sprayerRelay.initConnection() != "Good")
-            {
-                status = "Bad";
-            }
-            return status;
-        }
-
-        public void stopSensors()
-        {
-            sprayerRelay.closeConnection();
-        }
-
         public void setCurrentPosition(Position currentPosition)
         {
             this.currentPosition = currentPosition;
             sprayerPositions = Position.CalculateGlobalSprayerPositions(currentPosition);
         }
+
+        #endregion
     }
 }

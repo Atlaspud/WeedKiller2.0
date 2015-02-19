@@ -15,7 +15,6 @@ namespace WeedKiller2._0
         public Target(Position targetPosition, uint cameraSerial)
         {
             this.targetPosition = Position.CalculateGlobalCameraPosition(cameraSerial, targetPosition);
-            //this.targetPosition = targetPosition;
             this.cameraSerial = cameraSerial;
 
             sprayedStatus = false;
