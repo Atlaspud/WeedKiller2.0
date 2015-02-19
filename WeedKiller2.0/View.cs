@@ -19,8 +19,8 @@ namespace WeedKiller2._0
 
         // Motion constants
         private const float DISTANCE_TRAVELLED_THRESHOLD = 0.256f; // image size which is 25.6cm x 20.48cm
-        private const string WSS_SERIAL_PORT = "COM4";
-        private const string IMU_SERIAL_PORT = "COM15";
+        private const string WSS_SERIAL_PORT = "COM9";
+        private const string IMU_SERIAL_PORT = "COM6";
 
         // Motion Objects
         private Motion motionController;
