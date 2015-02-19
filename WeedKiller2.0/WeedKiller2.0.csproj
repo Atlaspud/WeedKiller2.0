@@ -33,16 +33,16 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="Emgu.CV">
-      <HintPath>..\..\..\Emgu CV library\Emgu.CV.dll</HintPath>
+      <HintPath>..\..\Emgu CV 2.2.1\bin\Emgu.CV.dll</HintPath>
     </Reference>
     <Reference Include="Emgu.CV.UI">
-      <HintPath>..\..\..\Emgu CV library\Emgu.CV.UI.dll</HintPath>
+      <HintPath>..\..\Emgu CV 2.2.1\bin\Emgu.CV.UI.dll</HintPath>
     </Reference>
     <Reference Include="Emgu.Util">
-      <HintPath>..\..\..\Emgu CV library\Emgu.Util.dll</HintPath>
+      <HintPath>..\..\Emgu CV 2.2.1\bin\Emgu.Util.dll</HintPath>
     </Reference>
     <Reference Include="FlyCapture2Managed_v100">
-      <HintPath>..\..\..\..\..\..\..\Program Files (x86)\Point Grey Research\FlyCapture2\bin\FlyCapture2Managed_v100.dll</HintPath>
+      <HintPath>..\..\..\..\..\Program Files (x86)\Point Grey Research\FlyCapture2\bin\FlyCapture2Managed_v100.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />

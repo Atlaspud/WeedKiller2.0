@@ -23,6 +23,7 @@ namespace WeedKiller2._0
             sprayerRelay = new SprayerRelay(sprayerRelayPort);
             currentPosition = new Position(0, 0);
             sprayerPositions = Position.CalculateGlobalSprayerPositions(currentPosition);
+            sprayerRelay.initConnection();
         }
 
         public void addTarget(Target target)
@@ -86,7 +87,7 @@ namespace WeedKiller2._0
                 //Remove any finished tasks
                 if (sprayingList.Count() > 0)
                 {
-                    foreach (Task task in sprayingList)
+                    foreach (Task task in sprayingList)//
                     {
                         if (task.IsCompleted)
                         {

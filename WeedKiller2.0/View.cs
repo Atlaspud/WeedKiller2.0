@@ -70,10 +70,10 @@ namespace WeedKiller2._0
             {
                 currentPosition = new Position(0, 0);
                 motionController = new Motion(WSS_SERIAL_PORT, IMU_SERIAL_PORT);
-                UpdateChart(currentPosition);
             }
-            catch
+            catch (Exception e)
             {
+                MessageBox.Show(e.Message + e.StackTrace,"Error",MessageBoxButtons.OK);
                 return false;
             }
             return true;
@@ -94,6 +94,7 @@ namespace WeedKiller2._0
                 {
                     cameras.Add(SerialNumbers[i], new Camera(SerialNumbers[i]));
                 }
+
                 return true;
             }
             else
@@ -135,7 +136,12 @@ namespace WeedKiller2._0
                 runBtn.Text = "Reinitialise";
                 return false;
             }
-
+            for (int i = 0; i < 8; i++)
+            {
+                cameraPositions[i] = Position.CalculateGlobalCameraPosition(SerialNumbers[i], currentPosition);
+            }
+            sprayerPositions = Position.CalculateGlobalSprayerPositions(currentPosition);
+            UpdateChart(currentPosition);
             return true;
         }
 
@@ -266,7 +272,9 @@ namespace WeedKiller2._0
                     AppendLine(String.Format("Target Found at Camera: {0}", i + 1));
                     Target target = new Target(lastImageCapturedPosition, SerialNumbers[i]);
                     sprayer.addTarget(target);
-                    motionChart.Series["Target"].Points.AddXY(target.getPosition().getXPosition(), target.getPosition().getYPosition());
+                    this.BeginInvoke(new Action(() =>
+                        motionChart.Series["Target"].Points.AddXY(target.getPosition().getXPosition(), target.getPosition().getYPosition())
+                        ));
                 }
                 processedImages.Add(sampleImage);
             }

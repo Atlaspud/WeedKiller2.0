@@ -76,9 +76,9 @@ namespace WeedKiller2._0
             {
                 serialPort.Write(stringToWrite);
             }
-            catch (Exception)
+            catch (Exception e)
             {
-                MessageBox.Show("write fail");
+                MessageBox.Show(e.Message + e.StackTrace, "Error", MessageBoxButtons.OK);
             }
 
         }
