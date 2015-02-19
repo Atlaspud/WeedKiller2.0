@@ -91,35 +91,35 @@ namespace WeedKiller2._0
             return false;
         }
 
-        //static public Position CalculateGlobalCameraPosition(uint cameraSerial, Position currentPosition)
-        //{
-        //    int cameraNumber = Array.IndexOf(Camera.SerialNumbers, cameraSerial);
+        static public Position CalculateGlobalCameraPosition(uint cameraSerial, Position currentPosition)
+        {
+            int cameraNumber = Array.IndexOf(View.SerialNumbers, cameraSerial);
 
-        //    double rotatedCameraXPosition = (CAMERA_LOCATIONS[cameraNumber, 0] * Math.Cos(-currentPosition.getYaw())) - (CAMERA_LOCATIONS[cameraNumber, 1] * Math.Sin(-currentPosition.getYaw()));
-        //    double rotatedCameraYPosition = (CAMERA_LOCATIONS[cameraNumber, 0] * Math.Sin(-currentPosition.getYaw())) + (CAMERA_LOCATIONS[cameraNumber, 1] * Math.Cos(-currentPosition.getYaw()));
+            double rotatedCameraXPosition = (CAMERA_LOCATIONS[cameraNumber, 0] * Math.Cos(-currentPosition.getYaw())) - (CAMERA_LOCATIONS[cameraNumber, 1] * Math.Sin(-currentPosition.getYaw()));
+            double rotatedCameraYPosition = (CAMERA_LOCATIONS[cameraNumber, 0] * Math.Sin(-currentPosition.getYaw())) + (CAMERA_LOCATIONS[cameraNumber, 1] * Math.Cos(-currentPosition.getYaw()));
 
-        //    double globalCameraXPosition = currentPosition.getXPosition() + rotatedCameraXPosition;
-        //    double globalCameraYPosition = currentPosition.getYPosition() + rotatedCameraYPosition;
+            double globalCameraXPosition = currentPosition.getXPosition() + rotatedCameraXPosition;
+            double globalCameraYPosition = currentPosition.getYPosition() + rotatedCameraYPosition;
 
-        //    return new Position(currentPosition.getTime(), currentPosition.getChangeInTime(), globalCameraXPosition, globalCameraYPosition, currentPosition.getYaw());
-        //}
+            return new Position(currentPosition.getTime(), currentPosition.getChangeInTime(), globalCameraXPosition, globalCameraYPosition, currentPosition.getYaw());
+        }
 
-        //static public Position[] CalculateGlobalSprayerPositions(Position currentPosition)
-        //{
-        //    Position[] sprayerGlobalPositions = new Position[8];
+        static public Position[] CalculateGlobalSprayerPositions(Position currentPosition)
+        {
+            Position[] sprayerGlobalPositions = new Position[8];
 
-        //    for (int i = 0; i < 8; i++)
-        //    {
-        //        double rotatedXSprayerPosition = (SPRAYER_LOCATIONS[i, 0] * Math.Cos(-currentPosition.getYaw())) - (SPRAYER_LOCATIONS[i, 1] * Math.Sin(-currentPosition.getYaw()));
-        //        double rotatedYSprayerPosition = (SPRAYER_LOCATIONS[i, 0] * Math.Sin(-currentPosition.getYaw())) + (SPRAYER_LOCATIONS[i, 1] * Math.Cos(-currentPosition.getYaw()));
+            for (int i = 0; i < 8; i++)
+            {
+                double rotatedXSprayerPosition = (SPRAYER_LOCATIONS[i, 0] * Math.Cos(-currentPosition.getYaw())) - (SPRAYER_LOCATIONS[i, 1] * Math.Sin(-currentPosition.getYaw()));
+                double rotatedYSprayerPosition = (SPRAYER_LOCATIONS[i, 0] * Math.Sin(-currentPosition.getYaw())) + (SPRAYER_LOCATIONS[i, 1] * Math.Cos(-currentPosition.getYaw()));
 
-        //        double globalXSprayerPosition = currentPosition.getXPosition() + rotatedXSprayerPosition;
-        //        double globalYSprayerPosition = currentPosition.getYPosition() + rotatedYSprayerPosition;
+                double globalXSprayerPosition = currentPosition.getXPosition() + rotatedXSprayerPosition;
+                double globalYSprayerPosition = currentPosition.getYPosition() + rotatedYSprayerPosition;
 
-        //        sprayerGlobalPositions[i] = new Position(currentPosition.getTime(), currentPosition.getChangeInTime(), globalXSprayerPosition, globalYSprayerPosition, currentPosition.getYaw());
-        //    }
+                sprayerGlobalPositions[i] = new Position(currentPosition.getTime(), currentPosition.getChangeInTime(), globalXSprayerPosition, globalYSprayerPosition, currentPosition.getYaw());
+            }
 
-        //    return sprayerGlobalPositions;
-        //}
+            return sprayerGlobalPositions;
+        }
     }
 }

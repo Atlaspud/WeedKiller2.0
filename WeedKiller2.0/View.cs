@@ -13,7 +13,7 @@ using System.Windows.Forms;
 
 namespace WeedKiller2._0
 {
-    public partial class Form1 : Form
+    public partial class View : Form
     {
         #region Global Variables
 
@@ -32,10 +32,17 @@ namespace WeedKiller2._0
         private volatile bool stop = false;
 
         // Sprayer constants
-        //private const string SPRAYER_RELAY_PORT = "COM4";
+        private const string SPRAYER_RELAY_PORT = "COM4";
+
+        // Sprayer Objects
+        Position[] sprayerPositions;
+        Sprayer sprayer;
 
         // Vision
-        private static readonly uint[] SerialNumbers = new uint[8]
+        private Dictionary<uint, Camera> cameras;
+        private int cameraCount;
+        Position[] cameraPositions = new Position[8];
+        public static readonly uint[] SerialNumbers = new uint[8]
         {
             13421033,
             13421041,
@@ -47,33 +54,35 @@ namespace WeedKiller2._0
             13421057
         };
 
-        private Dictionary<uint, Camera> cameras;
-        private int cameraCount;
-
         #endregion
 
         #region Main Initilisation
 
-        public Form1()
+        public View()
         {
             InitializeComponent();
-            initialiseMotion();
-            initiliseVision();
-            //initilaiseSprayer();
-            UpdateChart(currentPosition);
-            AppendLine("" + currentPosition.getXPosition());
+            initialiseSystem();
         }
 
-        private void initialiseMotion()
+        private Boolean initialiseMotion()
         {
-            currentPosition = new Position(0, 0);
-            motionController = new Motion(WSS_SERIAL_PORT, IMU_SERIAL_PORT);
+            try
+            {
+                currentPosition = new Position(0, 0);
+                motionController = new Motion(WSS_SERIAL_PORT, IMU_SERIAL_PORT);
+                UpdateChart(currentPosition);
+            }
+            catch
+            {
+                return false;
+            }
+            return true;
         }
 
         // find number of cameras connected
         // setup cameras and add to array
 
-        private void initiliseVision()
+        private Boolean initialiseVision()
         {
             cameraCount = Camera.GetNumberOfCameras();
 
@@ -85,21 +94,50 @@ namespace WeedKiller2._0
                 {
                     cameras.Add(SerialNumbers[i], new Camera(SerialNumbers[i]));
                 }
+                return true;
             }
             else
             {
-                MessageBox.Show("The ethernet bus manager has failed to find the camera(s). Ensure the camera(s) are connected and correctly configured.",
-                    "Error",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Error,
-                    MessageBoxDefaultButton.Button1);
+                return false;
             }
         }
 
-        //private void initialiseSprayer()
-        //{
-        //    sprayer = new Sprayer(SPRAYER_RELAY_PORT);
-        //}
+        private Boolean initialiseSprayer()
+        {
+            try
+            {
+                sprayer = new Sprayer(SPRAYER_RELAY_PORT);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        public Boolean initialiseSystem()
+        {
+            if (!initialiseVision())
+            {
+                MessageBox.Show("Failed initialise Cameras, Check Cameras and try again");
+                runBtn.Text = "Reinitialise";
+                return false;
+            }
+            if (!initialiseMotion())
+            {
+                MessageBox.Show("Failed initialise Motion, Check connections and try again");
+                runBtn.Text = "Reinitialise";
+                return false;
+            }
+            if (!initialiseSprayer())
+            {
+                MessageBox.Show("Failed initialise Sprayers, Check connections and try again");
+                runBtn.Text = "Reinitialise";
+                return false;
+            }
+
+            return true;
+        }
 
         #endregion
 
@@ -112,10 +150,17 @@ namespace WeedKiller2._0
                 runBtn.Text = "Stop";
                 startSystem();
             }
-            else
+            else if (runBtn.Text == "Stop")
             {
                 runBtn.Text = "Start";
                 stopSystem();
+            }
+            else
+            {
+                if (initialiseSystem())
+                {
+                    runBtn.Text = "Start";
+                }
             }
         }
 
@@ -167,13 +212,14 @@ namespace WeedKiller2._0
                 currentPosition = motionController.run();
                 UpdateChart(currentPosition);
                 // Testing Camera
-                checkForNewImage();
-                //
-                Thread.Sleep(5);
+                updateCameras();
+                // Check Sprayer
+                updateSprayers();
+                Thread.Sleep(20);
             }
         }
 
-        public void checkForNewImage()
+        public void updateCameras()
         {
             if (lastImageCapturedPosition != null)
             {
@@ -190,17 +236,48 @@ namespace WeedKiller2._0
                 lastImageCapturedPosition = currentPosition.clone();
                 new Thread(processImage).Start();
             }
+
+            for (int i = 0; i < 8; i++)
+            {
+                cameraPositions[i] = Position.CalculateGlobalCameraPosition(SerialNumbers[i], currentPosition);
+            }
         }
 
         public void processImage()
         {
-            List<Image<Bgr, Byte>> cameraImages = new List<Image<Bgr, byte>>();
+            // Aquire Images
+            List<Image<Bgr, Byte>> cameraImages = new List<Image<Bgr, Byte>>();
             for (int i = 0; i < cameraCount; i++)
             {
-                cameraImages.Add(cameras[SerialNumbers[0]].getImage());
+                cameraImages.Add(cameras[SerialNumbers[i]].getImage());
                 AppendLine(String.Format("Camera {0} Image Captured", SerialNumbers[i]));
             }
-            cameraPictureBox.Image = cameraImages[0].Bitmap;
+            //cameraPictureBox.Image = cameraImages[0].Bitmap;
+
+            // Process Images
+            List<Image<Gray, Byte>> processedImages = new List<Image<Gray, Byte>>();
+            for (int i = 0; i < cameraCount; i++)
+            {
+                Image<Gray, Byte> sampleImage = ImageProcessor.thresholdImage(cameraImages[i]);
+                sampleImage = ImageProcessor.morphology(sampleImage);
+                List<int[]> windowLoactionArray = ImageProcessor.findWindows(sampleImage);
+                if (windowLoactionArray.Count != 0)
+                {
+                    AppendLine(String.Format("Target Found at Camera: {0}", i + 1));
+                    Target target = new Target(lastImageCapturedPosition, SerialNumbers[i]);
+                    sprayer.addTarget(target);
+                    motionChart.Series["Target"].Points.AddXY(target.getPosition().getXPosition(), target.getPosition().getYPosition());
+                }
+                processedImages.Add(sampleImage);
+            }
+            //imageProcessorPictureBox.Image = processedImages[0].Bitmap;
+        }
+
+        private void updateSprayers()
+        {
+            sprayerPositions = Position.CalculateGlobalSprayerPositions(currentPosition);
+            sprayer.setCurrentPosition(currentPosition);
+            sprayer.checkTargetLocations();
         }
 
         #endregion
@@ -244,10 +321,14 @@ namespace WeedKiller2._0
 
                 motionChart.Series["IMU"].Points.AddXY(x, y);
 
-                //motionChart.Series["Camera"].Points.Clear();
-                //motionChart.Series["Sprayer"].Points.Clear();
+                motionChart.Series["Camera"].Points.Clear();
+                motionChart.Series["Sprayer"].Points.Clear();
 
-
+                for (int i = 0; i < 8; i++)
+                {
+                    motionChart.Series["Camera"].Points.AddXY(cameraPositions[i].getXPosition(), cameraPositions[i].getYPosition());
+                    motionChart.Series["Sprayer"].Points.AddXY(sprayerPositions[i].getXPosition(), sprayerPositions[i].getYPosition());
+                }
             }
         }
 
