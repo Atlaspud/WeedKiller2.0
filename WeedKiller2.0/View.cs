@@ -18,7 +18,7 @@ namespace WeedKiller2._0
         #region Global Variables
 
         // Motion constants
-        private const float DISTANCE_TRAVELLED_THRESHOLD = 0.256f; // image size which is 25.6cm x 20.48cm
+        private const float DISTANCE_TRAVELLED_THRESHOLD = 0.13f; // half image size which is 25.6cm x 20.48cm
         private const string WSS_SERIAL_PORT = "COM9";
         private const string IMU_SERIAL_PORT = "COM6";
 
@@ -170,6 +170,8 @@ namespace WeedKiller2._0
             }
         }
 
+        
+
         #endregion
 
         #region Program Start and Stop Methods
@@ -184,6 +186,7 @@ namespace WeedKiller2._0
                 cameras[SerialNumbers[i]].start();
             }
             motionThread = new Thread(getMotion);
+            sprayer.startSensors();
             motionThread.Start();
         }
 
@@ -195,6 +198,7 @@ namespace WeedKiller2._0
             {
                 cameras[SerialNumbers[i]].stop();
             }
+            sprayer.stopSensors();
         }
 
         public void changeView(Boolean yesOrNo)

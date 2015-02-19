@@ -17,8 +17,8 @@ namespace WeedKiller2._0
         private const int IMAGE_WIDTH = 1279;
         private const int MORPHOLOGY_SIZE = 40;
         private const int BINARY_THRESHOLD = 20;
-        private const int WINDOW_SIZE = 75;
-        private const double CONNECTION_THRESHOLD = 80;
+        private const int WINDOW_SIZE = 50;
+        private const double CONNECTION_THRESHOLD = 55;
 
         // Thresholds image to single out green colour
 

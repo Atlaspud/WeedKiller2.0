@@ -23,7 +23,6 @@ namespace WeedKiller2._0
             sprayerRelay = new SprayerRelay(sprayerRelayPort);
             currentPosition = new Position(0, 0);
             sprayerPositions = Position.CalculateGlobalSprayerPositions(currentPosition);
-            sprayerRelay.initConnection();
         }
 
         public void addTarget(Target target)
@@ -54,8 +53,6 @@ namespace WeedKiller2._0
         //Create a function that will go through all the targets and check if any of the sprayers need to be turned on. At the end of the function call a new task that turns on the sprayers for the required period of time then ends.
         public void checkTargetLocations()
         {
-            DateTime start = DateTime.Now;
-
             if (targetArray.Count() != 0)
             {
                 List<int> sprayersToEngage = new List<int>();
@@ -87,11 +84,12 @@ namespace WeedKiller2._0
                 //Remove any finished tasks
                 if (sprayingList.Count() > 0)
                 {
-                    foreach (Task task in sprayingList)//
+                    int sprayingListCount = sprayingList.Count();
+                    for (int i = sprayingListCount - 1; i >= 0; i--)
                     {
-                        if (task.IsCompleted)
+                        if (sprayingList[i].IsCompleted)
                         {
-                            sprayingList.Remove(task);
+                            sprayingList.Remove(sprayingList[i]);
                         }
                     }
                 }
@@ -102,18 +100,6 @@ namespace WeedKiller2._0
                     DateTime t = DateTime.Now;
                     sprayingList.Add(Task.Factory.StartNew(() => turnOnSprayers(sprayersToEngage)));
                 }
-
-                DateTime finish = DateTime.Now;
-
-                double startMilli = start.Ticks / TimeSpan.TicksPerMillisecond;
-                double finishMilli = finish.Ticks / TimeSpan.TicksPerMillisecond;
-                double changeInTime = finishMilli - startMilli;
-
-                StringBuilder lineToPrint = new StringBuilder();
-
-                lineToPrint.Append(start.Hour + ":" + start.Minute + ":" + start.Second + "." + start.Millisecond + ",");
-                lineToPrint.Append(finish.Hour + ":" + finish.Minute + ":" + finish.Second + "." + finish.Millisecond + ",");
-                lineToPrint.Append(changeInTime);
             }
         }
 
@@ -122,21 +108,7 @@ namespace WeedKiller2._0
         {
             if (sprayersToTurnOn.Count() != 0)
             {
-                DateTime start = DateTime.Now;
-
                 sprayerRelay.turnOnSprayers(sprayersToTurnOn);
-
-                DateTime finish = DateTime.Now;
-
-                double startMilli = start.Ticks / TimeSpan.TicksPerMillisecond;
-                double finishMilli = finish.Ticks / TimeSpan.TicksPerMillisecond;
-                double changeInTime = finishMilli - startMilli;
-
-                StringBuilder lineToPrint = new StringBuilder();
-
-                lineToPrint.Append(start.Hour + ":" + start.Minute + ":" + start.Second + "." + start.Millisecond + ",");
-                lineToPrint.Append(finish.Hour + ":" + finish.Minute + ":" + finish.Second + "." + finish.Millisecond + ",");
-                lineToPrint.Append(changeInTime);
             }
         }
 
