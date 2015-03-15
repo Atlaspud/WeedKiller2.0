@@ -262,7 +262,7 @@ namespace WeedKiller2._0
                 cameraImages.Add(cameras[SerialNumbers[i]].getImage());
                 AppendLine(String.Format("Camera {0} Image Captured", SerialNumbers[i]));
             }
-            //cameraPictureBox.Image = cameraImages[0].Bitmap;
+            cameraPictureBox.Image = cameraImages[0].Bitmap;
 
             // Process Images
             List<Image<Gray, Byte>> processedImages = new List<Image<Gray, Byte>>();
@@ -283,6 +283,7 @@ namespace WeedKiller2._0
                 processedImages.Add(sampleImage);
             }
             //imageProcessorPictureBox.Image = processedImages[0].Bitmap;
+            imageProcessorPictureBox.Image = cameraImages[6].Bitmap;
         }
 
         private void updateSprayers()
