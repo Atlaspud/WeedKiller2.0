@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
 using System.Drawing;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -54,6 +55,9 @@ namespace WeedKiller2._0
             13421057
         };
 
+        // Image processing variables
+        int WINDOW_SIZE = 96;
+
         #endregion
 
         #region Main Initilisation
@@ -85,7 +89,7 @@ namespace WeedKiller2._0
         private Boolean initialiseVision()
         {
             cameraCount = Camera.GetNumberOfCameras();
-
+            
             if (cameraCount != 0)
             {
                 AppendLine(String.Format("Cameras Found: {0}", cameraCount));
@@ -116,6 +120,21 @@ namespace WeedKiller2._0
             }
         }
 
+        private Boolean initialiseImageProcessor()
+        {
+            string inputFile = Environment.CurrentDirectory + "\\lut\\input.tif";
+            string outputFile = Environment.CurrentDirectory + "\\lut\\output.tif";
+            if (File.Exists(inputFile) && File.Exists(outputFile))
+            {
+                ImageProcessor.loadLUT(new Image<Bgr, byte>(inputFile), new Image<Bgr, byte>(outputFile));
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
         public Boolean initialiseSystem()
         {
             if (!initialiseVision())
@@ -133,6 +152,12 @@ namespace WeedKiller2._0
             if (!initialiseSprayer())
             {
                 MessageBox.Show("Failed initialise Sprayers, Check connections and try again");
+                runBtn.Text = "Reinitialise";
+                return false;
+            }
+            if (!initialiseImageProcessor())
+            {
+                MessageBox.Show("Failed to initialise ImageProcessor, make sure LUT files are located in local directory and try again.");
                 runBtn.Text = "Reinitialise";
                 return false;
             }
@@ -169,8 +194,6 @@ namespace WeedKiller2._0
                 }
             }
         }
-
-        
 
         #endregion
 
@@ -256,7 +279,7 @@ namespace WeedKiller2._0
         public void processImage()
         {
             // Aquire Images
-            List<Image<Bgr, Byte>> cameraImages = new List<Image<Bgr, Byte>>();
+            List<Image<Bgr, byte>> cameraImages = new List<Image<Bgr, byte>>();
             for (int i = 0; i < cameraCount; i++)
             {
                 cameraImages.Add(cameras[SerialNumbers[i]].getImage());
@@ -265,25 +288,48 @@ namespace WeedKiller2._0
             cameraPictureBox.Image = cameraImages[0].Bitmap;
 
             // Process Images
-            List<Image<Gray, Byte>> processedImages = new List<Image<Gray, Byte>>();
+            List<Image<Gray, byte>> processedImages = new List<Image<Gray, byte>>();
             for (int i = 0; i < cameraCount; i++)
             {
-                Image<Gray, Byte> sampleImage = ImageProcessor.thresholdImage(cameraImages[i]);
-                sampleImage = ImageProcessor.morphology(sampleImage);
-                List<int[]> windowLoactionArray = ImageProcessor.findWindows(sampleImage);
-                if (windowLoactionArray.Count != 0)
+                // Segmentation
+                Image<Bgr, byte> colourCorrectedImage = ImageProcessor.applyLUT(cameraImages[i]);
+                Image<Gray,byte> maskImage = ImageProcessor.thresholdImage(colourCorrectedImage);
+                maskImage = ImageProcessor.morphology(maskImage);
+
+                // Window extraction
+                List<int[]> windowLocationArray = ImageProcessor.findWindows(maskImage);
+                int[] imageDescriptor = new int[] {0,0};
+                for (int n = 0; n < windowLocationArray.Count(); n++)
                 {
-                    AppendLine(String.Format("Target Found at Camera: {0}", i + 1));
+                    int[] location = windowLocationArray[n];
+                    Rectangle roi = new Rectangle(location[0], location[1], WINDOW_SIZE, WINDOW_SIZE);
+                    Image<Bgr, byte> window = ImageProcessor.extractROI(cameraImages[i], roi);
+                    Image<Gray, byte> mask = ImageProcessor.extractROI(maskImage, roi);
+
+                    // HOG feature extraction
+                    float[] windowDescriptor = new float[180];
+
+                    // Stage one classification - is window lantana?
+                    bool windowDecision = true; // MachineLearning.predictWindow(windowDescriptor);
+                    if (windowDecision) imageDescriptor[0]++; //lantana
+                    else imageDescriptor[1]++; //non-lantana
+                }
+
+                // Stage two classification - is image lantana based on number of lantana/non-lantana windows?
+                bool imageDecision = true; // MachineLearning.predictImage(imageDescriptor);
+
+                if (imageDecision)
+                {
+                    AppendLine(String.Format("Lantana Found at Camera: {0}", i + 1));
                     Target target = new Target(lastImageCapturedPosition, SerialNumbers[i]);
                     sprayer.addTarget(target);
                     this.BeginInvoke(new Action(() =>
                         motionChart.Series["Target"].Points.AddXY(target.getPosition().getXPosition(), target.getPosition().getYPosition())
                         ));
                 }
-                processedImages.Add(sampleImage);
+                processedImages.Add(maskImage);
             }
-            //imageProcessorPictureBox.Image = processedImages[0].Bitmap;
-            imageProcessorPictureBox.Image = cameraImages[6].Bitmap;
+            imageProcessorPictureBox.Image = processedImages[0].Bitmap;
         }
 
         private void updateSprayers()

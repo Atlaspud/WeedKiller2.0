@@ -3,6 +3,7 @@ using Emgu.CV.CvEnum;
 using Emgu.CV.Structure;
 using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -19,6 +20,105 @@ namespace WeedKiller2._0
         private const int BINARY_THRESHOLD = 20;
         private const int WINDOW_SIZE = 50;
         private const double CONNECTION_THRESHOLD = 55;
+        private static byte[, , ,] LUT;
+
+        //Generate shadow/highlight LUT
+        public static unsafe void loadLUT(Image<Bgr, byte> input, Image<Bgr, byte> output)
+        {
+            int height = input.Height;
+            int width = input.Width;
+            byte[, ,] inputData = input.Data;
+            byte[, ,] outputData = output.Data;
+            LUT = new byte[256, 256, 256, 3];
+
+            fixed (byte* outputPointer = outputData)
+            fixed (byte* inputPointer = inputData)
+            fixed (byte* lutPointer = LUT)
+                for (int i = 0; i < height * width; i++)
+                {
+                    int imageIndex = i * 3;
+                    int lutIndex = *(inputPointer + imageIndex) * 196608 + *(inputPointer + imageIndex + 1) * 768 + *(inputPointer + imageIndex + 2) * 3;
+                    *(lutPointer + lutIndex) = *(outputPointer + imageIndex);
+                    *(lutPointer + lutIndex + 1) = *(outputPointer + imageIndex + 1);
+                    *(lutPointer + lutIndex + 2) = *(outputPointer + imageIndex + 2);
+                }
+        }
+
+        //Perform shadow/highlight with LUT
+        public static unsafe Image<Bgr, byte> applyLUT(Image<Bgr, byte> input)
+        {
+            if (LUT == null) return null;
+
+            int height = input.Height;
+            int width = input.Width;
+
+            byte[, ,] inputData = input.Data;
+            byte[, ,] outputData = new byte[height, width, 3];
+
+            fixed (byte* outputPointer = outputData)
+            fixed (byte* inputPointer = inputData)
+            fixed (byte* lutPointer = LUT)
+                for (int i = 0; i < height * width; i++)
+                {
+                    int imageIndex = i * 3;
+                    int lutIndex = *(inputPointer + imageIndex) * 196608 + *(inputPointer + imageIndex + 1) * 768 + *(inputPointer + imageIndex + 2) * 3;
+                    *(outputPointer + imageIndex) = *(lutPointer + lutIndex);
+                    *(outputPointer + imageIndex + 1) = *(lutPointer + lutIndex + 1);
+                    *(outputPointer + imageIndex + 2) = *(lutPointer + lutIndex + 2);
+                }
+
+            return new Image<Bgr, byte>(outputData);
+        }
+
+        // Extract rectangular ROI region from larger image
+        static public Image<Bgr, byte> extractROI(Image<Bgr, byte> input, Rectangle roi)
+        {
+            int inputHeight = input.Height;
+            int inputWidth = input.Width;
+            int outputHeight = roi.Height;
+            int outputWidth = roi.Width;
+            int x = roi.X;
+            int y = roi.Y;
+
+            byte[, ,] inputData = input.Data;
+            byte[, ,] outputData = new byte[outputHeight, outputWidth, 3];
+
+            for (int i = y; i < (y + outputHeight); i++)
+            {
+                for (int j = x; j < (x + outputWidth); j++)
+                {
+                    for (int n = 0; n < 3; n++)
+                    {
+                        outputData[(i - y), (j - x), n] = inputData[i, j, n];
+                    }
+                }
+            }
+
+            return new Image<Bgr, byte>(outputData);
+        }
+
+        static public Image<Gray, byte> extractROI(Image<Gray, byte> input, Rectangle roi)
+        {
+            int inputHeight = input.Height;
+            int inputWidth = input.Width;
+            int outputHeight = roi.Height;
+            int outputWidth = roi.Width;
+            int x = roi.X;
+            int y = roi.Y;
+
+            byte[, ,] inputData = input.Data;
+            byte[, ,] outputData = new byte[outputHeight, outputWidth, 1];
+
+            for (int i = y; i < (y + outputHeight); i++)
+            {
+                for (int j = x; j < (x + outputWidth); j++)
+                {
+                    outputData[(i - y), (j - x), 0] = inputData[i, j, 0];
+                }
+            }
+
+            return new Image<Gray, byte>(outputData);
+        }
 
         // Thresholds image to single out green colour
 
