@@ -18,32 +18,46 @@ namespace WeedKiller2._0
     {
         #region Global Variables
 
-        // Motion constants
-        private const float DISTANCE_TRAVELLED_THRESHOLD = 0.13f; // half image size which is 25.6cm x 20.48cm
+        // Serial port connections
         private const string WSS_SERIAL_PORT = "COM7";
         private const string IMU_SERIAL_PORT = "COM9";
+        private const string LIGHT_SENSOR_SERIAL_PORT = "COM5";
+        private const string SPRAYER_RELAY_PORT = "COM8";
+
+        // Motion constants
+        private const float DISTANCE_TRAVELLED_THRESHOLD = 0.13f; // half image size which is 25.6cm x 20.48cm
 
         // Motion Objects
         private Motion motionController;
-        private Thread motionThread;
+        private Thread systemThread;
 
         // Motion Volatiles
         private volatile Position currentPosition;
         private volatile Position lastImageCapturedPosition;
         private volatile bool stop = false;
 
-        // Sprayer constants
-        private const string SPRAYER_RELAY_PORT = "COM8";
+        // Light sensor objects
+        private Thread lightSensorThread;
+        private LightSensor lightSensor;
+
+        // Light sensor volatiles
+        private volatile float[] illuminance;
+        private volatile double[] gain;
 
         // Sprayer Objects
         Position[] sprayerPositions;
         Sprayer sprayer;
 
         // Vision
+        private List<Image<Bgr,byte>> originalImages;
+        private List<Image<Bgr,byte>> colourCorrectedImages;
+        private List<Image<Gray, byte>> maskImages;
+        private List<Image<Bgr, byte>> windowImages;
+
         private Dictionary<uint, Camera> cameras;
         private int cameraCount;
         Position[] cameraPositions = new Position[8];
-        public static readonly uint[] SerialNumbers = new uint[8]
+        public static readonly uint[] SERIAL_NUMBERS = new uint[8]
         {
             13421033,
             13421041,
@@ -54,6 +68,7 @@ namespace WeedKiller2._0
             13421056,
             13421057
         };
+        string workingDirectory;
 
         // Image processing variables
         int WINDOW_SIZE = 96;
@@ -96,7 +111,8 @@ namespace WeedKiller2._0
                 cameras = new Dictionary<uint, Camera>(cameraCount);
                 for (int i = 0; i < cameraCount; i++)
                 {
-                    cameras.Add(SerialNumbers[i], new Camera(SerialNumbers[i]));
+                    cameras.Add(SERIAL_NUMBERS[i], new Camera(SERIAL_NUMBERS[i]));
+                    cameras[SERIAL_NUMBERS[i]].setCameraProfile(Camera.CameraProfile.gainVsIlluminance);
                 }
 
                 return true;
@@ -135,6 +151,29 @@ namespace WeedKiller2._0
             }
         }
 
+        public Boolean initialiseLightSensor()
+        {
+            try
+            {
+                lightSensor = new LightSensor(LIGHT_SENSOR_SERIAL_PORT);
+                gain = new double[cameraCount];
+                illuminance = new float[cameraCount];
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private void createNewWorkingDirectory()
+        {
+            workingDirectory = Environment.CurrentDirectory;
+            string[] folders = Directory.GetDirectories(workingDirectory);
+            workingDirectory = workingDirectory + "\\" + (folders.Length + 1);
+            Directory.CreateDirectory(workingDirectory);
+        }
+
         public Boolean initialiseSystem()
         {
             if (!initialiseVision())
@@ -161,12 +200,17 @@ namespace WeedKiller2._0
                 runBtn.Text = "Reinitialise";
                 return false;
             }
+            if (!initialiseLightSensor())
+            {
+                MessageBox.Show("Failed to initialise light sensor. Check connection and try again.", "Error", MessageBoxButtons.OK);
+                return false;
+            }
             for (int i = 0; i < 8; i++)
             {
-                cameraPositions[i] = Position.CalculateGlobalCameraPosition(SerialNumbers[i], currentPosition);
+                cameraPositions[i] = Position.CalculateGlobalCameraPosition(SERIAL_NUMBERS[i], currentPosition);
             }
             sprayerPositions = Position.CalculateGlobalSprayerPositions(currentPosition);
-            UpdateChart(currentPosition);
+            updateMotionChart(currentPosition);
             return true;
         }
 
@@ -201,16 +245,17 @@ namespace WeedKiller2._0
 
         public void startSystem()
         {
+            createNewWorkingDirectory();
             currentPosition = new Position(0, 0);
             changeView(false);
             stop = false;
             for (int i = 0; i < cameraCount; i++)
             {
-                cameras[SerialNumbers[i]].start();
+                cameras[SERIAL_NUMBERS[i]].start();
             }
-            motionThread = new Thread(getMotion);
+            systemThread = new Thread(systemLoop);
             sprayer.startSensors();
-            motionThread.Start();
+            systemThread.Start();
         }
 
         public void stopSystem()
@@ -219,7 +264,7 @@ namespace WeedKiller2._0
             changeView(true);
             for (int i = 0; i < cameraCount; i++)
             {
-                cameras[SerialNumbers[i]].stop();
+                cameras[SERIAL_NUMBERS[i]].stop();
             }
             sprayer.stopSensors();
         }
@@ -227,29 +272,52 @@ namespace WeedKiller2._0
         public void changeView(Boolean yesOrNo)
         {
             cameraSelectionCombo.Enabled = yesOrNo;
-            frameRateCombo.Enabled = yesOrNo;
-            thresholdIntensityCombo.Enabled = yesOrNo;
-            morphologySizeCombo.Enabled = yesOrNo;
-            windowSizeCombo.Enabled = yesOrNo;
-            binningRatioCombo.Enabled = yesOrNo;
         }
 
         #endregion
 
         #region Threads
 
-        public void getMotion()
+        public void systemLoop()
         {
             while (!stop)
             {
+                updateIlluminanceAndGain();
                 currentPosition = motionController.run();
-                UpdateChart(currentPosition);
-                // Testing Camera
+                updateMotionChart(currentPosition);
                 updateCameras();
-                // Check Sprayer
                 updateSprayers();
+                updateLabels();
                 Thread.Sleep(20);
             }
+        }
+
+        public void updateIlluminanceAndGain()
+        {
+            illuminance = lightSensor.getCurrentReadings();
+            for (int i = 0; i < cameraCount; i++)
+            {
+                gain[i] = -0.024 * illuminance[i] + 24;
+                cameras[SERIAL_NUMBERS[i]].setGain(gain[i]);
+            }
+        }
+
+        private void updateLabels()
+        {
+            this.BeginInvoke(new Action(() =>
+            {
+                if (!cameraSelectionCombo.SelectedItem.Equals("None"))
+                {
+                    uint serial = uint.Parse((string)cameraSelectionCombo.SelectedItem);
+                    illuminanceLabel.Text = String.Format("{0}", illuminance[Array.IndexOf(SERIAL_NUMBERS, serial)]);
+                    shutterSpeedLabel.Text = String.Format("{0}", cameras[serial].getShutter());
+                    gainLabel.Text = String.Format("{0}", cameras[serial].getGain());
+                    exposureLabel.Text = String.Format("{0}", cameras[serial].getExposureValue());
+                    brightnessLabel.Text = String.Format("{0}", cameras[serial].getBrightness());
+                    whiteBalanceLabel.Text = String.Format("{0}-{1}", cameras[serial].getWhiteBalance()[0], cameras[serial].getWhiteBalance()[1]);
+                    Text = String.Format("{0}", cameras[serial].getWhiteBalance()[0]);
+                }
+            }));
         }
 
         public void updateCameras()
@@ -272,32 +340,33 @@ namespace WeedKiller2._0
 
             for (int i = 0; i < 8; i++)
             {
-                cameraPositions[i] = Position.CalculateGlobalCameraPosition(SerialNumbers[i], currentPosition);
+                cameraPositions[i] = Position.CalculateGlobalCameraPosition(SERIAL_NUMBERS[i], currentPosition);
             }
         }
 
         public void processImage()
         {
-            // Aquire Images
-            List<Image<Bgr, byte>> cameraImages = new List<Image<Bgr, byte>>();
+            originalImages = new List<Image<Bgr,byte>>(cameraCount);
+            colourCorrectedImages = new List<Image<Bgr,byte>>(cameraCount);
+            maskImages = new List<Image<Gray,byte>>(cameraCount);
+            windowImages = new List<Image<Bgr,byte>>(cameraCount);
+
             for (int i = 0; i < cameraCount; i++)
             {
-                cameraImages.Add(cameras[SerialNumbers[i]].getImage());
-                AppendLine(String.Format("Camera {0} Image Captured", SerialNumbers[i]));
+                originalImages.Add(cameras[SERIAL_NUMBERS[i]].getImage());
+                windowImages.Add(originalImages[i]);
+                AppendLine(String.Format("Camera {0} Image Captured", SERIAL_NUMBERS[i]));
             }
-            cameraPictureBox.Image = cameraImages[0].Bitmap;
 
-            // Process Images
-            List<Image<Gray, byte>> processedImages = new List<Image<Gray, byte>>(cameraCount);
-            List<Image<Bgr, byte>> colourImages = new List<Image<Bgr, byte>>(cameraCount);
             for (int i = 0; i < cameraCount; i++)
             {
                 // Segmentation
-                Image<Bgr, byte> colourCorrectedImage = ImageProcessor.applyLUT(cameraImages[i]);
+                Image<Bgr, byte> colourCorrectedImage = ImageProcessor.applyLUT(originalImages[i]);
                 Image<Gray,byte> maskImage = ImageProcessor.thresholdImage(colourCorrectedImage);
                 maskImage = ImageProcessor.morphology(maskImage);
 
-                colourImages.Add(colourCorrectedImage);
+                colourCorrectedImages.Add(colourCorrectedImage);
+                maskImages.Add(maskImage);
 
                 // Window extraction
                 List<int[]> windowLocationArray = ImageProcessor.findWindows(maskImage);
@@ -306,6 +375,8 @@ namespace WeedKiller2._0
                 {
                     int[] location = windowLocationArray[n];
                     Rectangle roi = new Rectangle(location[0], location[1], WINDOW_SIZE, WINDOW_SIZE);
+                    windowImages[i].Draw(roi, new Bgr(Color.Red), 2);
+
                     //Image<Bgr, byte> window = ImageProcessor.extractROI(cameraImages[i], roi);
                     //Image<Gray, byte> mask = ImageProcessor.extractROI(maskImage, roi);
 
@@ -324,16 +395,30 @@ namespace WeedKiller2._0
                 if (windowLocationArray.Count() > 0)//imageDecision)
                 {
                     AppendLine(String.Format("Lantana Found at Camera: {0}", i + 1));
-                    Target target = new Target(lastImageCapturedPosition, SerialNumbers[i]);
+                    Target target = new Target(lastImageCapturedPosition, SERIAL_NUMBERS[i]);
                     sprayer.addTarget(target);
                     this.BeginInvoke(new Action(() =>
                         motionChart.Series["Target"].Points.AddXY(target.getPosition().getXPosition(), target.getPosition().getYPosition())
                         ));
                 }
-                processedImages.Add(maskImage);
             }
-            imageProcessorPictureBox.Image = processedImages[0].Bitmap;
-            pictureBox1.Image = colourImages[0].Bitmap;
+            updatePictureBoxes();
+        }
+
+        private void updatePictureBoxes()
+        {
+            this.BeginInvoke(new Action(() =>
+            {
+                if (!cameraSelectionCombo.SelectedItem.Equals("None"))
+                {
+                    uint serial = uint.Parse((string)cameraSelectionCombo.SelectedItem);
+                    int index = Array.IndexOf(SERIAL_NUMBERS, serial);
+                    pictureBox1.Image = originalImages[index].Bitmap;
+                    pictureBox2.Image = colourCorrectedImages[index].Bitmap;
+                    pictureBox3.Image = maskImages[index].Bitmap;
+                    pictureBox4.Image = windowImages[index].Bitmap;
+                }
+            }));
         }
 
         private void updateSprayers()
@@ -365,11 +450,11 @@ namespace WeedKiller2._0
 
         delegate void UpdateChartCallback(Position position);
 
-        private void UpdateChart(Position position)
+        private void updateMotionChart(Position position)
         {
             if (this.motionChart.InvokeRequired)
             {
-                UpdateChartCallback d = new UpdateChartCallback(UpdateChart);
+                UpdateChartCallback d = new UpdateChartCallback(updateMotionChart);
                 this.BeginInvoke(d, new object[] {position});
             }
             else

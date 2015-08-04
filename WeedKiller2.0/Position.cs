@@ -93,7 +93,7 @@ namespace WeedKiller2._0
 
         static public Position CalculateGlobalCameraPosition(uint cameraSerial, Position currentPosition)
         {
-            int cameraNumber = Array.IndexOf(View.SerialNumbers, cameraSerial);
+            int cameraNumber = Array.IndexOf(View.SERIAL_NUMBERS, cameraSerial);
 
             double rotatedCameraXPosition = (CAMERA_LOCATIONS[cameraNumber, 0] * Math.Cos(-currentPosition.getYaw())) - (CAMERA_LOCATIONS[cameraNumber, 1] * Math.Sin(-currentPosition.getYaw()));
             double rotatedCameraYPosition = (CAMERA_LOCATIONS[cameraNumber, 0] * Math.Sin(-currentPosition.getYaw())) + (CAMERA_LOCATIONS[cameraNumber, 1] * Math.Cos(-currentPosition.getYaw()));

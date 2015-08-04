@@ -59,6 +59,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Camera.cs" />
+    <Compile Include="LightSensor.cs" />
     <Compile Include="View.cs">
       <SubType>Form</SubType>
     </Compile>

@@ -7,6 +7,8 @@ using FlyCapture2Managed;
 using Emgu.CV;
 using Emgu.CV.CvEnum;
 using Emgu.CV.Structure;
+using System.Windows.Forms;
+using System.Threading;
 
 namespace WeedKiller2._0
 {
@@ -14,10 +16,12 @@ namespace WeedKiller2._0
     {
         #region Global Variables
 
+        public enum CameraProfile { defaultProfile, shutterSweep, exposureValueSweep, shutterVsIlluminance, gainVsIlluminance };
+
         private uint cameraSerialNumber;
 
         private ManagedGigECamera camera;
-        private CameraProperty exposure;
+        private CameraProperty autoExposure;
         private CameraProperty brightness;
         private CameraProperty frameRate;
         private CameraProperty gain;
@@ -38,10 +42,10 @@ namespace WeedKiller2._0
             ManagedBusManager busManager = new ManagedBusManager();
             ManagedPGRGuid guid = busManager.GetCameraFromSerialNumber(serialNumber);
             camera.Connect(guid);
-            InitialiseCamera();
+            initialiseCamera();
         }
 
-        private void InitialiseCamera()
+        private void initialiseCamera()
         {
             //Image size = 1280x1024, raw8 format, no offset
             GigEImageSettings imageSettings = new GigEImageSettings();
@@ -49,10 +53,10 @@ namespace WeedKiller2._0
             imageSettings.offsetY = 0;
             imageSettings.height = 1024;
             imageSettings.width = 1280;
-            imageSettings.pixelFormat = PixelFormat.PixelFormatRaw8;
+            imageSettings.pixelFormat = PixelFormat.PixelFormatRgb;
             camera.SetGigEImageSettings(imageSettings);
 
-            exposure = new CameraProperty(PropertyType.AutoExposure);
+            autoExposure = new CameraProperty(PropertyType.AutoExposure);
             brightness = new CameraProperty(PropertyType.Brightness);
             frameRate = new CameraProperty(PropertyType.FrameRate);
             shutter = new CameraProperty(PropertyType.Shutter);
@@ -60,26 +64,61 @@ namespace WeedKiller2._0
             gain = new CameraProperty(PropertyType.Gain);
             temperature = new CameraProperty(PropertyType.Temperature);
 
-            initiliseExposure();
-            initiliseBrightness();
-            initiliseFrameRate();
-            initiliseShutter();
-            initiliseGain();
-            initiliseWhiteBalance();
+            setCameraProfile(CameraProfile.defaultProfile);
 
             rawImage = new ManagedImage();
             convertedImage = new ManagedImage();
-
-            setAutoExposure();
-            setAutoBrightness();
-            setFrameRate(0.1);
-            setAutoShutter();
-            //setAutoGain(0,255);
-            //setWhiteBalance(1023,1023);
-
         }
 
+        #endregion
 
+        #region Camera Profiles
+
+        public void setCameraProfile(CameraProfile cameraProfile)
+        {
+            switch (cameraProfile)
+            {
+                case CameraProfile.defaultProfile:
+                    setAutoExposure();
+                    setAutoGain();
+                    setAutoShutter();
+                    setAutoWhiteBalance();
+                    setAutoBrightness();
+                    break;
+
+                case CameraProfile.exposureValueSweep:
+                    setExposureValue(0);
+                    setAutoGain();
+                    setAutoShutter(1, 256);
+                    setAutoWhiteBalance();
+                    setAutoBrightness();
+                    break;
+
+                case CameraProfile.shutterSweep:
+                    setAutoExposure();
+                    setAutoGain();
+                    setShutter(0);
+                    setAutoWhiteBalance();
+                    setAutoBrightness();
+                    break;
+
+                case CameraProfile.gainVsIlluminance:
+                    setExposureValue(1.05);
+                    setGain(0);
+                    setShutter(0.5);
+                    setAutoWhiteBalance();
+                    setAutoBrightness();
+                    break;
+
+                case CameraProfile.shutterVsIlluminance:
+                    setAutoExposure();
+                    setAutoGain();
+                    setShutter(0);
+                    setAutoWhiteBalance();
+                    setAutoBrightness();
+                    break;
+            }
+        }
 
         #endregion
 
@@ -97,7 +136,13 @@ namespace WeedKiller2._0
 
         #endregion
 
-        #region GetImage
+        public Image<Bgr, Byte> waitForImage()
+        {
+            camera.WaitForBufferEvent(rawImage, 0);
+            //rawImage.Convert(PixelFormat.PixelFormatBgr, convertedImage);
+            rawImage.Convert(convertedImage);
+            return new Image<Bgr, Byte>(convertedImage.bitmap);
+        }
 
         public Image<Bgr, Byte> getImage()
         {
@@ -106,92 +151,87 @@ namespace WeedKiller2._0
             return new Image<Bgr, Byte>(convertedImage.bitmap);
         }
 
-        #endregion
+        #region Camera Property Getters and Setters
 
-        #region Exposure Initialisation & Methods
-
-        private void initiliseExposure()
+        public double getExposureValue()
         {
-            exposure.onOff = true;
-            exposure.autoManualMode = true;
-            exposure.absControl = true;
-            camera.SetProperty(exposure);
+            autoExposure = camera.GetProperty(PropertyType.AutoExposure);
+            return autoExposure.absValue;
         }
 
-        public void setExposure(double value)
+        public void setExposureValue(double value)
         {
-            exposure.autoManualMode = false;
-            exposure.absValue = (float)value;
-            camera.SetProperty(exposure);
+            autoExposure.onOff = true;
+            autoExposure.absControl = true;
+            autoExposure.autoManualMode = false;
+            autoExposure.absValue = (float)value;
+            camera.SetProperty(autoExposure);
         }
 
-        public void setAutoExposure(double lower = 1, double upper = 1023)
+        public void setAutoExposure()
         {
-            exposure.autoManualMode = true;
-            camera.SetProperty(exposure);
-            uint range = (uint)(33554432 + lower * Math.Pow(2, 12) + upper);
-            camera.WriteRegister(0x1088, range);
+            autoExposure.onOff = true;
+            autoExposure.absControl = true;
+            autoExposure.autoManualMode = true;
+            camera.SetProperty(autoExposure);
         }
 
-        #endregion
-
-        #region Brightness Initialisation & Methods
-
-        private void initiliseBrightness()
+        public double getBrightness()
         {
-            brightness.onOff = true;
-            brightness.autoManualMode = true;
-            brightness.absControl = true;
-            camera.SetProperty(brightness);
+            brightness = camera.GetProperty(PropertyType.Brightness);
+            return brightness.absValue;
         }
 
         public void setBrightness(double value)
         {
+            brightness.onOff = true;
+            brightness.absControl = true;
             brightness.autoManualMode = false;
             brightness.absValue = (float)value;
             camera.SetProperty(brightness);
         }
 
-        public void setAutoBrightness(double lower = 0, double upper = 0)
+        public void setAutoBrightness()
         {
+            brightness.onOff = true;
+            brightness.absControl = true;
             brightness.autoManualMode = true;
             camera.SetProperty(brightness);
         }
 
-        #endregion
-
-        #region FrameRate Initialisation & Methods
-
-        private void initiliseFrameRate()
+        public double getFrameRate()
         {
-            frameRate.onOff = true;
-            frameRate.autoManualMode = false;
-            frameRate.absControl = true;
-            frameRate.absValue = (float)0.5;
-            camera.SetProperty(frameRate);
+            frameRate = camera.GetProperty(PropertyType.FrameRate);
+            return brightness.absValue;
         }
 
         public void setFrameRate(double value)
         {
+            frameRate.onOff = true;
+            frameRate.absControl = true;
             frameRate.autoManualMode = false;
             frameRate.absValue = (float)value;
             camera.SetProperty(frameRate);
         }
 
-        #endregion
-
-        #region Shutter Initialisation & Methods
-
-        private void initiliseShutter()
+        public void setAutoFrameRate()
         {
-            shutter.onOff = true;
-            shutter.autoManualMode = true;
-            shutter.absControl = true;
-            camera.SetProperty(shutter);
+            frameRate.onOff = true;
+            frameRate.absControl = true;
+            frameRate.autoManualMode = true;
+            camera.SetProperty(frameRate);
         }
 
-        public void setShutterSpeed(double value)
+        public double getShutter()
         {
+            shutter = camera.GetProperty(PropertyType.Shutter);
+            return shutter.absValue;
+        }
+
+        public void setShutter(double value)
+        {
+            shutter.onOff = true;
+            shutter.absControl = true;
             shutter.autoManualMode = false;
             shutter.absValue = (float)value;
             camera.SetProperty(shutter);
@@ -199,60 +239,55 @@ namespace WeedKiller2._0
 
         public void setAutoShutter(double lower = 1, double upper = 4095)
         {
+            shutter.onOff = true;
+            shutter.absControl = true;
             shutter.autoManualMode = true;
             camera.SetProperty(shutter);
             uint range = (uint)(33554432 + lower * Math.Pow(2, 12) + upper);
             camera.WriteRegister(0x1098, range);
         }
 
-        #endregion
-
-        #region Gain Initialisation & Methods
-
-        private void initiliseGain()
+        public double getGain()
         {
-            gain.onOff = true;
-            gain.autoManualMode = true;
-            gain.absControl = true;
-            camera.SetProperty(gain);
-            camera.WriteRegister(0x10A0, 0x020000FF);
+            gain = camera.GetProperty(PropertyType.Gain);
+            return gain.absValue;
         }
 
         public void setGain(double value)
         {
+            gain.onOff = true;
+            gain.absControl = true;
             gain.autoManualMode = false;
+            gain.absValue = (float)value;
             camera.SetProperty(gain);
         }
 
         public void setAutoGain(double lower = 0, double upper = 255)
         {
-            gain.autoManualMode = true;
+            gain.onOff = true;
             gain.absControl = true;
+            gain.autoManualMode = true;
             camera.SetProperty(gain);
             uint range = (uint)(33554432 + lower * Math.Pow(2, 12) + upper);
             camera.WriteRegister(0x10A0, range);
         }
 
-        #endregion
-
-        #region WhiteBalance Initialisation & Methods
-
-        private void initiliseWhiteBalance()
+        public int[] getWhiteBalance()
         {
-            whiteBalance.onOff = true;
-            whiteBalance.autoManualMode = true;
-            camera.SetProperty(whiteBalance);
+            whiteBalance = camera.GetProperty(PropertyType.WhiteBalance);
+            return new int[] { (int)whiteBalance.valueA, (int)whiteBalance.valueB };
         }
 
         public void setWhiteBalance(double red, double blue)
         {
+            whiteBalance.onOff = true;
             whiteBalance.autoManualMode = false;
             camera.SetProperty(whiteBalance);
         }
 
-        public void setAutoWhiteBalance(double redLower, double redUpper, double blueLower, double blueUpper)
+        public void setAutoWhiteBalance()
         {
-            whiteBalance.onOff = true;
+            whiteBalance.onOff = false;
             whiteBalance.autoManualMode = true;
             camera.SetProperty(whiteBalance);
         }
