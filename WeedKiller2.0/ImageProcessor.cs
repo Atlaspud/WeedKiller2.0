@@ -18,7 +18,7 @@ namespace WeedKiller2._0
         private const int IMAGE_WIDTH = 1279;
         private const int MORPHOLOGY_SIZE = 40;
         private const int BINARY_THRESHOLD = 20;
-        private const int WINDOW_SIZE = 50;
+        private const int Y_DECIMATION = 10;
         private const double CONNECTION_THRESHOLD = 55;
         private static byte[, , ,] LUT;
 
@@ -82,7 +82,7 @@ namespace WeedKiller2._0
 
             byte[, ,] inputData = input.Data;
             byte[, ,] outputData = new byte[outputHeight, outputWidth, 3];
-
+            
             for (int i = y; i < (y + outputHeight); i++)
             {
                 for (int j = x; j < (x + outputWidth); j++)
@@ -93,7 +93,7 @@ namespace WeedKiller2._0
                     }
                 }
             }
-
+            
             return new Image<Bgr, byte>(outputData);
         }
 
@@ -226,50 +226,64 @@ namespace WeedKiller2._0
 
         // Search through image for white pixels
 
-        static public List<int[]> findWindows(Image<Gray, Byte> binaryMask)
+        static public List<int[]> findWindows(Image<Gray, Byte> binaryMask, int windowSize)
         {
             List<int[]> startingLocation = new List<int[]>();
             Byte[, ,] maskData = binaryMask.Data; // y,x structure
-            for (int row = 0; row < binaryMask.Height; row += WINDOW_SIZE)
+            for (int row = 0; row < binaryMask.Height; row += Y_DECIMATION)
             {
-                for (int col = 0; col < binaryMask.Width; col += WINDOW_SIZE)
+                for (int col = 0; col < binaryMask.Width; col += windowSize)
                 {
                     if (maskData[row, col, 0] == 255)
                     {
-                        int colMaxBack = col - WINDOW_SIZE;
+                        int colMaxBack = col - windowSize;
 
-                        while (col >= 0 && col > colMaxBack && maskData[row, col, 0] == 255)
+                        while (col > 0 && col > colMaxBack && maskData[row, col, 0] == 255)
                         {
                             --col;
                         }
-                        if (checkFit(col, row, maskData))
+                        if (checkFit(col, row, maskData, windowSize, startingLocation))
                         {
+                            //Image<Gray, byte> test = ImageProcessor.extractROI(binaryMask,new Rectangle(col,row,windowSize,windowSize));
+                            //if (bruteForceCheck(test))
+                            //{
                             int[] points = { col, row };
                             startingLocation.Add(points);
                             if (col > IMAGE_WIDTH) col = IMAGE_WIDTH;
+                            //}
                         }
-                        col += WINDOW_SIZE;
+                        col += windowSize;
                     }
                 }
             }
             return startingLocation;
-
         }
 
         // Check if window fits, assume it does, then check
 
-        static private Boolean checkFit(int col, int row, Byte[, ,] maskData)
+        static private Boolean checkFit(int col, int row, Byte[, ,] maskData, int windowSize, List<int[]> startingLocation)
         {
             Boolean x12Fit = true;
             Boolean x22Fit = true;
             Boolean x21Fit = true;
 
-            int windowBoundryX = col + WINDOW_SIZE;
-            if (windowBoundryX > IMAGE_WIDTH) windowBoundryX = IMAGE_WIDTH;
-            int windowBoundryY = row + WINDOW_SIZE;
-            if (windowBoundryY > IMAGE_HEIGHT) windowBoundryY = IMAGE_HEIGHT;
+            int windowBoundryX = col + windowSize;
+            if (windowBoundryX > IMAGE_WIDTH) return false;
+            int windowBoundryY = row + windowSize;
+            if (windowBoundryY > IMAGE_HEIGHT) return false;
             int startingPointX = ++col;
             int startingPointY = row;
+
+            // Check if intersects with other windows 
+            Rectangle newRect = new Rectangle(new Point(col, row), new Size(windowSize, windowSize));
+            foreach (int[] location in startingLocation)
+            {
+                Rectangle oldRect = new Rectangle(new Point(location[0], location[1]), new Size(windowSize, windowSize));
+                if (oldRect.IntersectsWith(newRect))
+                {
+                    return false;
+                }
+            }
 
 
             // Check X12 corner of box
