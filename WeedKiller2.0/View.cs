@@ -178,31 +178,31 @@ namespace WeedKiller2._0
         {
             if (!initialiseVision())
             {
-                MessageBox.Show("Failed initialise Cameras, Check Cameras and try again");
+                MessageBox.Show("Failed to initialise cameras. Check camera connections and try again.");
                 runBtn.Text = "Reinitialise";
                 return false;
             }
             if (!initialiseMotion())
             {
-                MessageBox.Show("Failed initialise Motion, Check connections and try again");
+                MessageBox.Show("Failed to initialise motion. Check IMU and WSS connections and try again.", "Error", MessageBoxButtons.OK);
                 runBtn.Text = "Reinitialise";
                 return false;
             }
             if (!initialiseSprayer())
             {
-                MessageBox.Show("Failed initialise Sprayers, Check connections and try again");
+                MessageBox.Show("Failed to initialise sprayers. Check sprayer connections and try again.", "Error", MessageBoxButtons.OK);
                 runBtn.Text = "Reinitialise";
                 return false;
             }
             if (!initialiseImageProcessor())
             {
-                MessageBox.Show("Failed to initialise ImageProcessor, make sure LUT files are located in local directory and try again.");
+                MessageBox.Show("Failed to initialise ImageProcessor, make sure LUT files are located in local directory and try again.", "Error", MessageBoxButtons.OK);
                 runBtn.Text = "Reinitialise";
                 return false;
             }
             if (!initialiseLightSensor())
             {
-                MessageBox.Show("Failed to initialise light sensor. Check connection and try again.", "Error", MessageBoxButtons.OK);
+                MessageBox.Show("Failed to initialise light sensor. Check light sensor connection and try again.", "Error", MessageBoxButtons.OK);
                 return false;
             }
             for (int i = 0; i < 8; i++)
