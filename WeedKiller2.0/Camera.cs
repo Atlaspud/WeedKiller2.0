@@ -70,10 +70,10 @@ namespace WeedKiller2._0
             rawImage = new ManagedImage();
             convertedImage = new ManagedImage();
 
-            //setAutoExposure();
-            //setAutoBrightness();
-            //setFrameRate(35.0);
-            //setAutoShutter();
+            setAutoExposure();
+            setAutoBrightness();
+            setFrameRate(0.1);
+            setAutoShutter();
             //setAutoGain(0,255);
             //setWhiteBalance(1023,1023);
 
@@ -167,7 +167,7 @@ namespace WeedKiller2._0
             frameRate.onOff = true;
             frameRate.autoManualMode = false;
             frameRate.absControl = true;
-            frameRate.absValue = (float)7.5;
+            frameRate.absValue = (float)0.5;
             camera.SetProperty(frameRate);
         }
 

@@ -21,7 +21,7 @@ namespace WeedKiller2._0
         // Motion constants
         private const float DISTANCE_TRAVELLED_THRESHOLD = 0.13f; // half image size which is 25.6cm x 20.48cm
         private const string WSS_SERIAL_PORT = "COM7";
-        private const string IMU_SERIAL_PORT = "COM8";
+        private const string IMU_SERIAL_PORT = "COM9";
 
         // Motion Objects
         private Motion motionController;
@@ -33,7 +33,7 @@ namespace WeedKiller2._0
         private volatile bool stop = false;
 
         // Sprayer constants
-        private const string SPRAYER_RELAY_PORT = "COM4";
+        private const string SPRAYER_RELAY_PORT = "COM8";
 
         // Sprayer Objects
         Position[] sprayerPositions;
@@ -288,13 +288,16 @@ namespace WeedKiller2._0
             cameraPictureBox.Image = cameraImages[0].Bitmap;
 
             // Process Images
-            List<Image<Gray, byte>> processedImages = new List<Image<Gray, byte>>();
+            List<Image<Gray, byte>> processedImages = new List<Image<Gray, byte>>(cameraCount);
+            List<Image<Bgr, byte>> colourImages = new List<Image<Bgr, byte>>(cameraCount);
             for (int i = 0; i < cameraCount; i++)
             {
                 // Segmentation
                 Image<Bgr, byte> colourCorrectedImage = ImageProcessor.applyLUT(cameraImages[i]);
                 Image<Gray,byte> maskImage = ImageProcessor.thresholdImage(colourCorrectedImage);
                 maskImage = ImageProcessor.morphology(maskImage);
+
+                colourImages.Add(colourCorrectedImage);
 
                 // Window extraction
                 List<int[]> windowLocationArray = ImageProcessor.findWindows(maskImage);
@@ -303,22 +306,22 @@ namespace WeedKiller2._0
                 {
                     int[] location = windowLocationArray[n];
                     Rectangle roi = new Rectangle(location[0], location[1], WINDOW_SIZE, WINDOW_SIZE);
-                    Image<Bgr, byte> window = ImageProcessor.extractROI(cameraImages[i], roi);
-                    Image<Gray, byte> mask = ImageProcessor.extractROI(maskImage, roi);
+                    //Image<Bgr, byte> window = ImageProcessor.extractROI(cameraImages[i], roi);
+                    //Image<Gray, byte> mask = ImageProcessor.extractROI(maskImage, roi);
 
                     // HOG feature extraction
-                    float[] windowDescriptor = new float[180];
+                    //float[] windowDescriptor = new float[180];
 
                     // Stage one classification - is window lantana?
-                    bool windowDecision = true; // MachineLearning.predictWindow(windowDescriptor);
-                    if (windowDecision) imageDescriptor[0]++; //lantana
-                    else imageDescriptor[1]++; //non-lantana
+                    //bool windowDecision = true; // MachineLearning.predictWindow(windowDescriptor);
+                    //if (windowDecision) imageDescriptor[0]++; //lantana
+                    //else imageDescriptor[1]++; //non-lantana
                 }
 
                 // Stage two classification - is image lantana based on number of lantana/non-lantana windows?
-                bool imageDecision = true; // MachineLearning.predictImage(imageDescriptor);
+                //bool imageDecision = true; // MachineLearning.predictImage(imageDescriptor);
 
-                if (imageDecision)
+                if (windowLocationArray.Count() > 0)//imageDecision)
                 {
                     AppendLine(String.Format("Lantana Found at Camera: {0}", i + 1));
                     Target target = new Target(lastImageCapturedPosition, SerialNumbers[i]);
@@ -330,6 +333,7 @@ namespace WeedKiller2._0
                 processedImages.Add(maskImage);
             }
             imageProcessorPictureBox.Image = processedImages[0].Bitmap;
+            pictureBox1.Image = colourImages[0].Bitmap;
         }
 
         private void updateSprayers()
