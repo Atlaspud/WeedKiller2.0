@@ -80,11 +80,9 @@ namespace WeedKiller2._0
 
         static public Boolean isPositionWithinLimits(Position centerPosition, Position targetPosition, Double radius)
         {
-            double tX = targetPosition.getXPosition();
-            double tY = targetPosition.getYPosition();
-            double cX = centerPosition.getXPosition();
-            double cY = centerPosition.getYPosition();
-            if ((Math.Pow(tX - cX, 2) + Math.Pow(tY - cY, 2)) <= Math.Pow(radius, 2))
+            double diffX = targetPosition.getXPosition() - centerPosition.getXPosition();
+            double diffY = targetPosition.getYPosition() - centerPosition.getYPosition();
+            if ((diffX*diffX + diffY*diffY) <= radius*radius)
             {
                 return true;
             }

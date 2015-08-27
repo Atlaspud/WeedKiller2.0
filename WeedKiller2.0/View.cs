@@ -51,7 +51,10 @@ namespace WeedKiller2._0
         private List<Image<Bgr,byte>> originalImages;
         private List<Image<Bgr,byte>> colourCorrectedImages;
         private List<Image<Gray, byte>> maskImages;
-        private List<Image<Bgr, byte>> windowImages;
+        private List<Image<Bgr, byte>> classifiedImages;
+
+        private HOGDescriptor hogDescriptor;
+        private BinaryClassifier binaryClassifier;
 
         private Dictionary<uint, Camera> cameras;
         private int cameraCount;
@@ -138,6 +141,14 @@ namespace WeedKiller2._0
 
         private Boolean initialiseImageProcessor()
         {
+            try
+            {
+                hogDescriptor = new HOGDescriptor();
+            }
+            catch (Exception)
+            {
+                return false;
+            }
             string inputFile = Environment.CurrentDirectory + "\\lut\\input.tif";
             string outputFile = Environment.CurrentDirectory + "\\lut\\output.tif";
             if (File.Exists(inputFile) && File.Exists(outputFile))
@@ -149,6 +160,19 @@ namespace WeedKiller2._0
             {
                 return false;
             }
+        }
+
+        public Boolean initialiseMachineLearning()
+        {
+            try
+            {
+                binaryClassifier = new BinaryClassifier();
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+            return true;
         }
 
         public Boolean initialiseLightSensor()
@@ -196,7 +220,13 @@ namespace WeedKiller2._0
             }
             if (!initialiseImageProcessor())
             {
-                MessageBox.Show("Failed to initialise ImageProcessor, make sure LUT files are located in local directory and try again.", "Error", MessageBoxButtons.OK);
+                MessageBox.Show("Failed to initialise ImageProcessor, make sure LUT files are located in local directory and HOG parameters are realisable.", "Error", MessageBoxButtons.OK);
+                runBtn.Text = "Reinitialise";
+                return false;
+            }
+            if (!initialiseMachineLearning())
+            {
+                MessageBox.Show("Failed to initialise Machine Learning, make sure the predictor models are located in the local directory.", "Error", MessageBoxButtons.OK);
                 runBtn.Text = "Reinitialise";
                 return false;
             }
@@ -318,7 +348,7 @@ namespace WeedKiller2._0
             {
                 double xDiff = currentPosition.getXPosition() - lastImageCapturedPosition.getXPosition();
                 double yDiff = currentPosition.getYPosition() - lastImageCapturedPosition.getYPosition();
-                if (DISTANCE_TRAVELLED_THRESHOLD <= Math.Sqrt(Math.Pow(xDiff, 2) + Math.Pow(yDiff, 2)))
+                if (DISTANCE_TRAVELLED_THRESHOLD <= Math.Sqrt(xDiff * xDiff + yDiff * yDiff))
                 {
                     lastImageCapturedPosition = currentPosition.clone();
                     new Thread(processImage).Start();
@@ -341,16 +371,14 @@ namespace WeedKiller2._0
             originalImages = new List<Image<Bgr,byte>>(cameraCount);
             colourCorrectedImages = new List<Image<Bgr,byte>>(cameraCount);
             maskImages = new List<Image<Gray,byte>>(cameraCount);
-            windowImages = new List<Image<Bgr,byte>>(cameraCount);
+            classifiedImages = new List<Image<Bgr,byte>>(cameraCount);
 
             for (int i = 0; i < cameraCount; i++)
             {
+                // Acquisition
                 originalImages.Add(cameras[SERIAL_NUMBERS[i]].getImage());
                 AppendLine(String.Format("Camera {0} Image Captured", SERIAL_NUMBERS[i]));
-            }
 
-            for (int i = 0; i < cameraCount; i++)
-            {
                 // Segmentation
                 Image<Bgr, byte> colourCorrectedImage = ImageProcessor.applyLUT(originalImages[i]);
                 Image<Gray,byte> maskImage = ImageProcessor.thresholdImage(colourCorrectedImage);
@@ -358,33 +386,47 @@ namespace WeedKiller2._0
 
                 colourCorrectedImages.Add(colourCorrectedImage);
                 maskImages.Add(maskImage);
-                windowImages.Add(maskImage.Convert<Bgr, byte>());
+                classifiedImages.Add(originalImages[i].Clone());
 
                 // Window extraction
                 List<int[]> windowLocationArray = ImageProcessor.findWindows(maskImage, WINDOW_SIZE);
-                int[] imageDescriptor = new int[] {0,0};
+                double[] imageDescriptor = new double[] { 0, 0 };
                 for (int n = 0; n < windowLocationArray.Count(); n++)
                 {
                     int[] location = windowLocationArray[n];
                     Rectangle roi = new Rectangle(location[0], location[1], WINDOW_SIZE, WINDOW_SIZE);
-                    windowImages[i].Draw(roi, new Bgr(Color.Red), 2);
-
                     Image<Bgr, byte> window = ImageProcessor.extractROI(originalImages[i], roi);
                     Image<Gray, byte> mask = ImageProcessor.extractROI(maskImage, roi);
 
-                    // HOG feature extraction
-                    //float[] windowDescriptor = new float[180];
+                    //Feature extraction
+                    double[] windowDescriptor = hogDescriptor.compute(window, mask);
 
-                    // Stage one classification - is window lantana?
-                    //bool windowDecision = true; // MachineLearning.predictWindow(windowDescriptor);
-                    //if (windowDecision) imageDescriptor[0]++; //lantana
-                    //else imageDescriptor[1]++; //non-lantana
+                    //Stage one classification
+                    Prediction windowPrediction = binaryClassifier.predictWindow(windowDescriptor);
+                    if (windowPrediction.label) imageDescriptor[0]++;
+                    else imageDescriptor[1]++;
+
+                    //Fancy classification output images
+                    double blue = 0;
+                    double red = 0;
+                    if (windowPrediction.probability <= 0.5)
+                    {
+                        red = windowPrediction.probability * 510;
+                        blue = 255;
+                    }
+                    else
+                    {
+                        red = 255;
+                        blue = 510 - windowPrediction.probability * 510;
+                    }
+                    classifiedImages[i].Draw(roi, new Bgr(blue, 0, red), 3);
                 }
 
                 // Stage two classification - is image lantana based on number of lantana/non-lantana windows?
-                //bool imageDecision = true; // MachineLearning.predictImage(imageDescriptor);
+                Prediction imagePrediction = binaryClassifier.predictImage(imageDescriptor);
 
-                if (windowLocationArray.Count() > 0)//imageDecision)
+                //If image classified positive
+                if (imagePrediction.label)
                 {
                     AppendLine(String.Format("Lantana found at camera: {0}", i + 1));
                     Target target = new Target(lastImageCapturedPosition, SERIAL_NUMBERS[i]);
@@ -406,7 +448,7 @@ namespace WeedKiller2._0
                     pictureBox1.Image = originalImages[index].Bitmap;
                     pictureBox2.Image = colourCorrectedImages[index].Bitmap;
                     pictureBox3.Image = maskImages[index].Bitmap;
-                    pictureBox4.Image = windowImages[index].Bitmap;
+                    pictureBox4.Image = classifiedImages[index].Bitmap;
                 }
             }));
         }

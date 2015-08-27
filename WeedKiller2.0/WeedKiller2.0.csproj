@@ -58,8 +58,13 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="BinaryClassifier.cs" />
     <Compile Include="Camera.cs" />
+    <Compile Include="HOGDescriptor.cs" />
     <Compile Include="LightSensor.cs" />
+    <Compile Include="LRModel.cs" />
+    <Compile Include="Prediction.cs" />
+    <Compile Include="SVMModel.cs" />
     <Compile Include="View.cs">
       <SubType>Form</SubType>
     </Compile>
