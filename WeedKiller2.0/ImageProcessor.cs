@@ -17,7 +17,7 @@ namespace WeedKiller2._0
         private const int IMAGE_HEIGHT = 1023;
         private const int IMAGE_WIDTH = 1279;
         private const int MORPHOLOGY_SIZE = 40;
-        private const int BINARY_THRESHOLD = 128;
+        private const int BINARY_THRESHOLD = 5;
         private const int Y_DECIMATION = 10;
         private const double CONNECTION_THRESHOLD = 55;
         private static byte[, , ,] LUT;
@@ -126,7 +126,7 @@ namespace WeedKiller2._0
         {
             Image<Gray, Byte> outputImage = new Image<Gray, Byte>(IMAGE_WIDTH, IMAGE_HEIGHT);
             Image<Gray, Byte>[] channel = image.Split();
-            outputImage = channel[1];
+            outputImage = channel[1] - channel[2];
             outputImage._ThresholdBinary(new Gray(BINARY_THRESHOLD), new Gray(255));
             return outputImage;
         }
