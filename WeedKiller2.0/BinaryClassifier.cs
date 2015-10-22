@@ -11,6 +11,7 @@ namespace WeedKiller2._0
         //Instance variables
         SVMModel supportVectorMachineModel;
         LRModel logisticRegressionModel;
+        ANNModel artificialNeuralNetworkModel;
 
         public BinaryClassifier()
         {
@@ -30,14 +31,15 @@ namespace WeedKiller2._0
             //double[] sigma = new double[] { 0, 5.41869646007879, 4.24610888843110 };
             //double[] theta = new double[] { -0.439200407495956, 5.52706460762027, -0.570342835510078 };
             //logisticRegressionModel = new LRModel(mu, sigma, theta);
-            
+
             logisticRegressionModel = new LRModel(Environment.CurrentDirectory + "\\LRModel.csv");
+            artificialNeuralNetworkModel = new ANNModel(Environment.CurrentDirectory + "\\ANNModel.csv");
         }
 
         public Prediction predictWindow(double[] descriptor)
         {
-            Prediction prediction = supportVectorMachineModel.predict(descriptor);
-            return prediction;
+            //return supportVectorMachineModel.predict(descriptor);
+            return artificialNeuralNetworkModel.predict(descriptor);
         }
 
         public Prediction predictImage(double[] descriptor)

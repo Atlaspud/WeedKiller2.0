@@ -34,16 +34,17 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="Emgu.CV">
-      <HintPath>..\..\Emgu CV 2.2.1\bin\Emgu.CV.dll</HintPath>
+      <HintPath>..\..\..\..\..\..\Program Files\Emgu CV 2.2.1\bin\Emgu.CV.dll</HintPath>
     </Reference>
     <Reference Include="Emgu.CV.UI">
-      <HintPath>..\..\Emgu CV 2.2.1\bin\Emgu.CV.UI.dll</HintPath>
+      <HintPath>..\..\..\..\..\..\Program Files\Emgu CV 2.2.1\bin\Emgu.CV.UI.dll</HintPath>
     </Reference>
     <Reference Include="Emgu.Util">
-      <HintPath>..\..\Emgu CV 2.2.1\bin\Emgu.Util.dll</HintPath>
+      <HintPath>..\..\..\..\..\..\Program Files\Emgu CV 2.2.1\bin\Emgu.Util.dll</HintPath>
     </Reference>
-    <Reference Include="FlyCapture2Managed_v100">
-      <HintPath>..\..\..\..\..\Program Files (x86)\Point Grey Research\FlyCapture2\bin\FlyCapture2Managed_v100.dll</HintPath>
+    <Reference Include="FlyCapture2Managed_v100, Version=2.7.3.11, Culture=neutral, PublicKeyToken=76c6583b4a4585f4, processorArchitecture=AMD64">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\..\..\..\Program Files (x86)\Point Grey Research\FlyCapture2\bin\FlyCapture2Managed_v100.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
@@ -58,8 +59,10 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ANNModel.cs" />
     <Compile Include="BinaryClassifier.cs" />
     <Compile Include="Camera.cs" />
+    <Compile Include="CustomMath.cs" />
     <Compile Include="HOGDescriptor.cs" />
     <Compile Include="LightSensor.cs" />
     <Compile Include="LRModel.cs" />
