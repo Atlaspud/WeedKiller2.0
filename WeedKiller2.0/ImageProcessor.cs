@@ -136,9 +136,9 @@ namespace WeedKiller2._0
         static public Image<Gray, Byte> morphology(Image<Gray, Byte> image)
         {
 
-            StructuringElementEx kernel = new StructuringElementEx(MORPHOLOGY_SIZE, MORPHOLOGY_SIZE, MORPHOLOGY_SIZE / 2, MORPHOLOGY_SIZE / 2, CV_ELEMENT_SHAPE.CV_SHAPE_RECT);
-            image._MorphologyEx(kernel, CV_MORPH_OP.CV_MOP_OPEN, 1);
-            image._MorphologyEx(kernel, CV_MORPH_OP.CV_MOP_CLOSE, 1);
+            Mat kernel = CvInvoke.GetStructuringElement(Emgu.CV.CvEnum.ElementShape.Rectangle, new Size(MORPHOLOGY_SIZE, MORPHOLOGY_SIZE), new Point(1, 1));
+            image._MorphologyEx(Emgu.CV.CvEnum.MorphOp.Open, kernel, new Point(-1, -1), 1, Emgu.CV.CvEnum.BorderType.Default, new MCvScalar());
+            image._MorphologyEx(Emgu.CV.CvEnum.MorphOp.Close, kernel, new Point(-1, -1), 1, Emgu.CV.CvEnum.BorderType.Default, new MCvScalar());
             return image;
         }
 

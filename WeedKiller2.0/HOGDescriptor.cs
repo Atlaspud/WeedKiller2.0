@@ -1,5 +1,6 @@
 ﻿using Emgu.CV;
 using Emgu.CV.Structure;
+using Emgu.CV.CvEnum;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -471,7 +472,7 @@ namespace WeedKiller2._0
         public Image<Bgr,byte> visualise(Image<Bgr,byte> image, float[] descriptor, int scaleFactor)
         {
             if (!useColour) image = image.Convert<Gray, byte>().Convert<Bgr, byte>();
-            Image<Bgr, byte> visualisation = image.Resize(scaleFactor, Emgu.CV.CvEnum.INTER.CV_INTER_CUBIC);
+            Image<Bgr, byte> visualisation = image.Resize(scaleFactor, Emgu.CV.CvEnum.Inter.Cubic);
             double binStep = 0;
             if (signedGradient) binStep = 2 * Math.PI / numberOfBins;
             else binStep = Math.PI / numberOfBins;

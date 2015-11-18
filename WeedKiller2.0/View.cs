@@ -113,7 +113,8 @@ namespace WeedKiller2._0
                 cameras = new Dictionary<uint, Camera>(cameraCount);
                 for (int i = 0; i < cameraCount; i++)
                 {
-                    cameras.Add(SERIAL_NUMBERS[i], new Camera(SERIAL_NUMBERS[i]));
+                    //cameras.Add(SERIAL_NUMBERS[i], new Camera(SERIAL_NUMBERS[i]));
+                    cameras.Add(SERIAL_NUMBERS[5], new Camera(SERIAL_NUMBERS[5]));
                     //cameras[SERIAL_NUMBERS[i]].setCameraProfile(Camera.CameraProfile.gainVsIlluminance);
                     cameraSelectionCombo.Items.Add(SERIAL_NUMBERS[i]);
                 }
