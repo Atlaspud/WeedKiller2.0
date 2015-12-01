@@ -81,7 +81,7 @@ namespace WeedKiller2._0
                 case CameraProfile.defaultProfile:
                     setAutoExposure();
                     setAutoGain();
-                    setAutoShutter();
+                    setShutter(10);
                     setAutoWhiteBalance();
                     setAutoBrightness();
                     break;
