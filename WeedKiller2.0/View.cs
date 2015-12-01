@@ -37,6 +37,7 @@ namespace WeedKiller2._0
         // Motion Objects
         private Motion motionController;
         private Thread systemThread;
+        private Boolean motionLogging = false;
 
         // Motion Volatiles
         private volatile Position currentPosition;
@@ -103,7 +104,7 @@ namespace WeedKiller2._0
             try
             {
                 currentPosition = new Position(0, 0);
-                motionController = new Motion((string)comboBoxWSS.SelectedItem, (string)comboBoxIMU.SelectedItem);
+                motionController = new Motion(motionLogging);// ((string)comboBoxWSS.SelectedItem, (string)comboBoxIMU.SelectedItem);
             }
             catch (Exception e)
             {
@@ -292,6 +293,7 @@ namespace WeedKiller2._0
             //createNewWorkingDirectory();
             currentPosition = new Position(0, 0);
             stop = false;
+            motionController.initConnection((string)comboBoxWSS.SelectedItem, (string)comboBoxIMU.SelectedItem);
             for (int i = 0; i < cameraCount; i++)
             {
                 cameras[SERIAL_NUMBERS[i]].start();
@@ -308,6 +310,7 @@ namespace WeedKiller2._0
             {
                 cameras[SERIAL_NUMBERS[i]].stop();
             }
+            motionController.closeConnection();
             sprayer.stopSensors();
         }
 

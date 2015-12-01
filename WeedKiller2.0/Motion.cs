@@ -4,6 +4,8 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using System.IO;
+
 
 namespace WeedKiller2._0
 {
@@ -21,15 +23,31 @@ namespace WeedKiller2._0
         private double startTime, endTime;
         private Position currentPosition;
         DateTime timeStamp;
+        private Boolean loggingFlag = false;
+        Boolean pointFlag = false;
+        private StreamWriter motionLog;
 
         #endregion
 
-        #region Constructor and Initialisation
+        #region Constructor, Initialisation and Closing
 
-        public Motion(String wheelSpeedPort, String imuPort)
+        public Motion(Boolean logging)
         {
-            wheelSpeedSensor = new WheelSpeedSensor(wheelSpeedPort);
-            imu = new InertialMeasurementUnit(imuPort);
+            loggingFlag = logging;
+            wheelSpeedSensor = new WheelSpeedSensor();//wheelSpeedPort);
+            imu = new InertialMeasurementUnit();//imuPort);
+        }
+
+        public void initConnection(String wheelSpeedPort, String imuPort)
+        {
+            wheelSpeedSensor.initConnection(wheelSpeedPort);
+            imu.initConnection(imuPort);
+            if (loggingFlag)
+            {
+                motionLog = new StreamWriter(Directory.GetCurrentDirectory() + "/MotionLog.csv", true);
+                motionLog.WriteLine("Time of Day,Change in Time (ms),X (m),Y (m),Yaw (rad),Velocity (m/s)");
+                motionLog.WriteLine("Initialised Sensors");
+            }
             resetOrigin();
         }
 
@@ -42,7 +60,23 @@ namespace WeedKiller2._0
             y0 = 0; y1 = 0;
             startTime = 0;
             currentPosition = new Position(DateTime.Now, startTime, 0.0, 0.0, 0);
+            if (loggingFlag)
+            {
+                motionLog.WriteLine("Reset Origin");
+            }
         }
+
+        public void closeConnection()
+        {
+            wheelSpeedSensor.closeConnection();
+            imu.closeConnection();
+            if (loggingFlag)
+            {
+                motionLog.WriteLine("Sensors Closed");
+                motionLog.Close();
+            }
+
+        } 
 
         #endregion
 
@@ -92,7 +126,12 @@ namespace WeedKiller2._0
                 currentYPosition += y;
 
                 currentPosition = new Position(timestamp, (endTime - startTime), currentXPosition, currentYPosition, newYaw - initialYaw);
-
+                
+                if (loggingFlag)
+                {
+                    saveToCSV(currentPosition, newVelocity);
+                }
+                
                 startTime = endTime;
                 x0 = x1;
                 y0 = y1;
@@ -100,5 +139,18 @@ namespace WeedKiller2._0
         }
 
         #endregion
+
+        public void saveToCSV(Position currentPosition, double velocity)
+        {
+            StringBuilder lineToPrint = new StringBuilder();
+            DateTime time = currentPosition.getTime();
+            lineToPrint.Append(time.Hour + ":" + time.Minute + ":" + time.Second + "." + time.Millisecond + ",");
+            lineToPrint.Append(currentPosition.getChangeInTime() + ",");
+            lineToPrint.Append(currentPosition.getXPosition() + ",");
+            lineToPrint.Append(currentPosition.getYPosition() + ",");
+            lineToPrint.Append(currentPosition.getYaw() + ",");
+            lineToPrint.Append(velocity);
+            motionLog.WriteLine(lineToPrint.ToString());
+        }
     }
 }

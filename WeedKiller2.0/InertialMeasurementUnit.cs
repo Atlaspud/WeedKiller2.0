@@ -27,27 +27,29 @@ namespace WeedKiller2._0
          * as argument. Port will initialise and be ready 
          * to read on object creation
          */
-        public InertialMeasurementUnit(String port)
+        public InertialMeasurementUnit()//String port)
         {
             //Serial Port Config
-            this.port = port;
-            initConnection();
+            //this.port = port;
+            //initConnection();
         }
 
 
         /*
          * Initializes the serial connection
          */
-        public void initConnection()
+        public void initConnection(String port)
         {
+            this.port = port;
+
             //Serial Port Config
             serialPort = new SerialPort(port, BAUD_RATE, PARITY, DATA_BITS, STOP_BITS);
 
-            closeExistingConnection();
+            closeConnection();
             serialPort.Open();
         }
 
-        public void closeExistingConnection()
+        public void closeConnection()
         {
             //Close Serial Port
             if (serialPort.IsOpen)
