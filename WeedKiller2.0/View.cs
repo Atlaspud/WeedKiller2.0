@@ -2,23 +2,19 @@
 using Emgu.CV.Structure;
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
 using System.Drawing;
 using System.IO;
 using System.IO.Ports;
 using System.Linq;
-using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace WeedKiller2._0
 {
     public partial class View : Form
     {
-        #region Global Variables
-
+        #region Global Constants
+        
         public static readonly uint[] SERIAL_NUMBERS = new uint[8]
         {
             13421033,
@@ -30,48 +26,52 @@ namespace WeedKiller2._0
             13421056,
             13421057
         };
+        private const float DISTANCE_BETWEEN_FRAMES = 0.10f; // metres
+        private const int WINDOW_SIZE = 96; // pixels
 
-        // Motion constants
-        private const float DISTANCE_TRAVELLED_THRESHOLD = 0.10f; // in metres
+        #endregion
 
-        // Motion Objects
-        private Motion motionController;
+        #region Global Variables
+
+        // System
         private Thread systemThread;
-
-        // Motion Volatiles
-        private volatile Position currentPosition;
-        private volatile Position lastImageCapturedPosition;
-        private volatile bool stop = false;
-
-        // Light sensor objects
-        private LightSensor lightSensor;
+        private volatile bool stopFlag = false;
+        string workingDirectory;
         private int directoryCount;
 
-        // Light sensor volatiles
-        private volatile float[] illuminance;
-        private volatile double[] gain;
+        // Motion
+        private Motion motionController;
+        private Position[] sprayerPositions;
+        private Position[] cameraPositions;
+        private volatile Position currentPosition;
+        private volatile Position previousPosition;
 
-        // Sprayer Objects
-        Position[] sprayerPositions;
-        Position[] cameraPositions = new Position[8];
-        List<Target> targetsToDraw;
-        Sprayer sprayer;
-
-        private List<List<Image<Bgr,byte>>> imageHistory;
-
+        // Cameras
         private Dictionary<uint, Camera> cameras;
         private int cameraCount;
-        int WINDOW_SIZE = 96;
+        private List<List<Image<Bgr, byte>>> imageHistory;
+        private StreamWriter imageLog;
+
+        // Image Processing
         private HOGDescriptor hogDescriptor;
         private BinaryClassifier binaryClassifier;
 
-        string workingDirectory;
-        private StreamWriter imageLog;
+        // Light Sensor
+        private LightSensor lightSensor;
+        private volatile float[] illuminance;
+        private volatile double[] gain;
+
+        // Sprayers
+        private Sprayer sprayer;
+        private List<Target> targetsToDraw;
 
         #endregion
 
         #region Main Initilisation
 
+        /// <summary>
+        /// Form constructor, initialises GUI and system.
+        /// </summary>
         public View()
         {
             InitializeComponent();
@@ -79,6 +79,9 @@ namespace WeedKiller2._0
             initialiseSystem();
         }
 
+        /// <summary>
+        /// Generate COM port list and bind to combo boxes. Set default ports.
+        /// </summary>
         private void initialiseCOMPorts()
         {
             comboBoxWSS.DataSource = SerialPort.GetPortNames();
@@ -92,11 +95,20 @@ namespace WeedKiller2._0
             comboBoxSprayers.SelectedItem = "COM11";
         }
 
+        /// <summary>
+        /// Button for refreshing COM port combo boxes.
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
         private void buttonRefresh_Click(object sender, EventArgs e)
         {
             initialiseCOMPorts();
         }
 
+        /// <summary>
+        /// Set current position to zero and create instance of Motion controller.
+        /// </summary>
+        /// <returns></returns>
         private Boolean initialiseMotion()
         {
             try
@@ -112,9 +124,10 @@ namespace WeedKiller2._0
             return true;
         }
 
-        // find number of cameras connected
-        // setup cameras and add to array
-
+        /// <summary>
+        /// Count number of connected cameras and initialise connections.
+        /// </summary>
+        /// <returns></returns>
         private Boolean initialiseVision()
         {
             cameraCount = Camera.GetNumberOfCameras();
@@ -138,6 +151,10 @@ namespace WeedKiller2._0
             }
         }
 
+        /// <summary>
+        /// Create new instance of sprayer class.
+        /// </summary>
+        /// <returns></returns>
         private Boolean initialiseSprayer()
         {
             try
@@ -151,6 +168,10 @@ namespace WeedKiller2._0
             }
         }
 
+        /// <summary>
+        /// Perform image processing overhead up front for HOG generation and colour correction LUT.
+        /// </summary>
+        /// <returns></returns>
         private Boolean initialiseImageProcessor()
         {
             try
@@ -174,6 +195,10 @@ namespace WeedKiller2._0
             }
         }
 
+        /// <summary>
+        /// Perform machine learning overhead up front by building predictor models from input files.
+        /// </summary>
+        /// <returns></returns>
         public Boolean initialiseMachineLearning()
         {
             try
@@ -187,6 +212,10 @@ namespace WeedKiller2._0
             return true;
         }
 
+        /// <summary>
+        /// Create new instance of light sensor class, with gain and illuminance values for all cameras.
+        /// </summary>
+        /// <returns></returns>
         public Boolean initialiseLightSensor()
         {
             try
@@ -200,16 +229,6 @@ namespace WeedKiller2._0
             {
                 return false;
             }
-        }
-
-        private void createNewWorkingDirectory()
-        {
-            workingDirectory = Environment.CurrentDirectory;
-            string[] folders = Directory.GetDirectories(workingDirectory);
-            directoryCount = folders.Length;
-            workingDirectory = workingDirectory + "\\" + directoryCount;
-            Directory.CreateDirectory(workingDirectory);
-            Directory.CreateDirectory(workingDirectory + "\\images\\");
         }
 
         public Boolean initialiseSystem()
@@ -250,6 +269,7 @@ namespace WeedKiller2._0
                 runButton.Text = "Reinitialise";
                 return false;
             }
+            cameraPositions = new Position[cameraCount];
             for (int i = 0; i < 8; i++)
             {
                 cameraPositions[i] = Position.CalculateGlobalCameraPosition(SERIAL_NUMBERS[i], currentPosition);
@@ -264,7 +284,7 @@ namespace WeedKiller2._0
 
         #region Form Events
 
-        private void runBtn_Click(object sender, EventArgs e)
+        private void runButton_Click(object sender, EventArgs e)
         {
             if (runButton.Text == "Start")
             {
@@ -295,7 +315,7 @@ namespace WeedKiller2._0
 
         public void startSystem()
         {
-            stop = false;
+            stopFlag = false;
             currentPosition = new Position(0, 0);
             if (checkBoxRecord.Checked)
             {
@@ -310,28 +330,41 @@ namespace WeedKiller2._0
             {
                 cameras[SERIAL_NUMBERS[i]].start();
             }
-            systemThread = new Thread(systemLoop);
             sprayer.startSensors();
+            systemThread = new Thread(systemLoop);
             systemThread.Start();
             enableDisableGUI();
         }
 
         public void stopSystem()
         {
-            stop = true;
+            stopFlag = true;
+            motionController.closeConnection();
             for (int i = 0; i < cameraCount; i++)
             {
                 cameras[SERIAL_NUMBERS[i]].stop();
             }
-            motionController.closeConnection();
             sprayer.stopSensors();
             if (checkBoxRecord.Checked)
             {
+                imageLog.Close();
                 Thread saveImagesThread = new Thread(saveImageHistory);
                 saveImagesThread.Start();
-                imageLog.Close();
             }
             enableDisableGUI();
+        }
+
+        /// <summary>
+        /// Create new working directory for data logging.
+        /// </summary>
+        private void createNewWorkingDirectory()
+        {
+            workingDirectory = Environment.CurrentDirectory;
+            string[] folders = Directory.GetDirectories(workingDirectory);
+            directoryCount = folders.Length;
+            workingDirectory = workingDirectory + "\\" + directoryCount;
+            Directory.CreateDirectory(workingDirectory);
+            Directory.CreateDirectory(workingDirectory + "\\images\\");
         }
 
         private void enableDisableGUI()
@@ -352,7 +385,7 @@ namespace WeedKiller2._0
 
         public void systemLoop()
         {
-            while (!stop)
+            while (!stopFlag)
             {
                 //updateIlluminanceAndGain();
                 currentPosition = motionController.run();
@@ -410,19 +443,19 @@ namespace WeedKiller2._0
 
         public void updateCameras()
         {
-            if (lastImageCapturedPosition != null)
+            if (previousPosition != null)
             {
-                double xDiff = currentPosition.getXPosition() - lastImageCapturedPosition.getXPosition();
-                double yDiff = currentPosition.getYPosition() - lastImageCapturedPosition.getYPosition();
-                if (DISTANCE_TRAVELLED_THRESHOLD <= Math.Sqrt(xDiff * xDiff + yDiff * yDiff))
+                double xDiff = currentPosition.getXPosition() - previousPosition.getXPosition();
+                double yDiff = currentPosition.getYPosition() - previousPosition.getYPosition();
+                if (DISTANCE_BETWEEN_FRAMES <= Math.Sqrt(xDiff * xDiff + yDiff * yDiff))
                 {
-                    lastImageCapturedPosition = currentPosition.clone();
+                    previousPosition = currentPosition.clone();
                     new Thread(processImages).Start();
                 }
             }
             else
             {
-                lastImageCapturedPosition = currentPosition.clone();
+                previousPosition = currentPosition.clone();
                 new Thread(processImages).Start();
             }
             for (int i = 0; i < 8; i++)
@@ -516,14 +549,14 @@ namespace WeedKiller2._0
                 if (imagePrediction.label)
                 {
                     AppendLine(String.Format("Lantana found at camera: {0}", i + 1));
-                    Target target = new Target(lastImageCapturedPosition, SERIAL_NUMBERS[i]);
+                    Target target = new Target(previousPosition, SERIAL_NUMBERS[i]);
                     targetsToDraw.Add(target);
                     sprayer.addTarget(target);
                 }
                 if (checkBoxRecord.Checked)
                 {
                     //"Time", "Camera", "Frame", "Positive Windows", "Negative Windows", "Image Score", "Image Label"
-                    imageLog.WriteLine("{0},{1},{2},{3},{4},{5},{6}", lastImageCapturedPosition.getTime().ToString("dd/MM/yyyy hh:mm:ss.fff"), i, (imageHistory.Count + 1), imageDescriptor[0], imageDescriptor[1], imagePrediction.score, imagePrediction.label);
+                    imageLog.WriteLine("{0},{1},{2},{3},{4},{5},{6}", previousPosition.getTime().ToString("dd/MM/yyyy hh:mm:ss.fff"), i, (imageHistory.Count + 1), imageDescriptor[0], imageDescriptor[1], imagePrediction.score, imagePrediction.label);
                 }
             }
             if (checkBoxRecord.Checked)

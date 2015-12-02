@@ -676,7 +676,7 @@
             this.runButton.TabIndex = 54;
             this.runButton.Text = "Start";
             this.runButton.UseVisualStyleBackColor = true;
-            this.runButton.Click += new System.EventHandler(this.runBtn_Click);
+            this.runButton.Click += new System.EventHandler(this.runButton_Click);
             // 
             // groupBox1
             // 
