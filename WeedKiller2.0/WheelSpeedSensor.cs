@@ -91,9 +91,11 @@ namespace WeedKiller2._0
                         successful = true;
                     }
                 }
-                catch
+                catch (IOException)
                 {
-                    // failed read, will try again
+                    // Failed read, assume 0 velocity and exit loop
+                    finalMessage = 0.0;
+                    successful = true;
                 }
             }
             return finalMessage;

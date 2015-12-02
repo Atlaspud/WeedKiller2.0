@@ -23,19 +23,25 @@ namespace WeedKiller2._0
         private double startTime, endTime;
         private Position currentPosition;
         DateTime timeStamp;
-        private Boolean loggingFlag = false;
-        Boolean pointFlag = false;
+        private Boolean loggingFlag;
         private StreamWriter motionLog;
+        private string logFile;
 
         #endregion
 
         #region Constructor, Initialisation and Closing
 
-        public Motion(Boolean logging)
+        public Motion()
         {
-            loggingFlag = logging;
+            loggingFlag = false;
             wheelSpeedSensor = new WheelSpeedSensor();//wheelSpeedPort);
             imu = new InertialMeasurementUnit();//imuPort);
+        }
+
+        public void setupLogging(bool loggingFlag, string logFile = "")
+        {
+            this.loggingFlag = loggingFlag;
+            this.logFile = logFile;
         }
 
         public void initConnection(String wheelSpeedPort, String imuPort)
@@ -44,7 +50,7 @@ namespace WeedKiller2._0
             imu.initConnection(imuPort);
             if (loggingFlag)
             {
-                motionLog = new StreamWriter(Directory.GetCurrentDirectory() + "/MotionLog.csv", true);
+                motionLog = new StreamWriter(logFile, true);
                 motionLog.WriteLine("Time of Day,Change in Time (ms),X (m),Y (m),Yaw (rad),Velocity (m/s)");
                 motionLog.WriteLine("Initialised Sensors");
             }
@@ -144,7 +150,7 @@ namespace WeedKiller2._0
         {
             StringBuilder lineToPrint = new StringBuilder();
             DateTime time = currentPosition.getTime();
-            lineToPrint.Append(time.Hour + ":" + time.Minute + ":" + time.Second + "." + time.Millisecond + ",");
+            lineToPrint.Append(time.ToString("dd/MM/yyyy hh:mm:ss.fff,"));
             lineToPrint.Append(currentPosition.getChangeInTime() + ",");
             lineToPrint.Append(currentPosition.getXPosition() + ",");
             lineToPrint.Append(currentPosition.getYPosition() + ",");

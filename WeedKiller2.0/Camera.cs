@@ -16,7 +16,7 @@ namespace WeedKiller2._0
     {
         #region Global Variables
 
-        public enum CameraProfile { defaultProfile, shutterSweep, exposureValueSweep, shutterVsIlluminance, gainVsIlluminance };
+        public enum CameraProfile { defaultProfile, shutterSweep, exposureValueSweep, shutterVsIlluminance, gainVsIlluminance, indoorProfile };
 
         private uint cameraSerialNumber;
 
@@ -28,6 +28,7 @@ namespace WeedKiller2._0
         private CameraProperty shutter;
         private CameraProperty temperature;
         private CameraProperty whiteBalance;
+        private CameraProperty gamma;
 
         private ManagedImage rawImage, convertedImage;
 
@@ -63,6 +64,7 @@ namespace WeedKiller2._0
             whiteBalance = new CameraProperty(PropertyType.WhiteBalance);
             gain = new CameraProperty(PropertyType.Gain);
             temperature = new CameraProperty(PropertyType.Temperature);
+            gamma = new CameraProperty(PropertyType.Gamma);
 
             setCameraProfile(CameraProfile.defaultProfile);
 
@@ -81,6 +83,16 @@ namespace WeedKiller2._0
                 case CameraProfile.defaultProfile:
                     setAutoExposure();
                     setAutoGain();
+                    setAutoShutter();
+                    setAutoWhiteBalance();
+                    setAutoBrightness();
+                    setAutoGamma();
+                    break;
+
+                case CameraProfile.indoorProfile:
+                    setExposureValue(2.414);
+                    setGain(24.014);
+                    setAutoGamma();
                     setShutter(10);
                     setAutoWhiteBalance();
                     setAutoBrightness();
@@ -146,12 +158,39 @@ namespace WeedKiller2._0
 
         public Image<Bgr, Byte> getImage()
         {
-            camera.RetrieveBuffer(rawImage);
-            rawImage.Convert(PixelFormat.PixelFormatBgr, convertedImage);
-            return new Image<Bgr, Byte>(convertedImage.bitmap);
+            try {
+                camera.RetrieveBuffer(rawImage);
+                rawImage.Convert(PixelFormat.PixelFormatBgr, convertedImage);
+                return new Image<Bgr, Byte>(convertedImage.bitmap);
+            } catch (Exception)
+            {
+                return new Image<Bgr, Byte>(1280, 1024, new Bgr(0, 0, 0));
+            }
         }
 
         #region Camera Property Getters and Setters
+
+        public void setGamma(double value)
+        {
+            gamma.onOff = true;
+            gamma.absControl = true;
+            gamma.autoManualMode = false;
+            gamma.absValue = (float)value;
+            camera.SetProperty(gamma);
+        }
+
+        public void setAutoGamma()
+        {
+            gamma.onOff = true;
+            gamma.autoManualMode = true;
+            camera.SetProperty(gamma);
+        }
+
+        public double getGamma()
+        {
+            gamma = camera.GetProperty(PropertyType.Gamma);
+            return gamma.absValue;
+        }
 
         public double getExposureValue()
         {
