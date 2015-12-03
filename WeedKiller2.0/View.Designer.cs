@@ -845,8 +845,6 @@
             // checkBoxImages
             // 
             this.checkBoxImages.AutoSize = true;
-            this.checkBoxImages.Checked = true;
-            this.checkBoxImages.CheckState = System.Windows.Forms.CheckState.Checked;
             this.checkBoxImages.Location = new System.Drawing.Point(178, 3);
             this.checkBoxImages.Name = "checkBoxImages";
             this.checkBoxImages.Size = new System.Drawing.Size(113, 21);
@@ -857,8 +855,6 @@
             // checkBoxGraph
             // 
             this.checkBoxGraph.AutoSize = true;
-            this.checkBoxGraph.Checked = true;
-            this.checkBoxGraph.CheckState = System.Windows.Forms.CheckState.Checked;
             this.checkBoxGraph.Location = new System.Drawing.Point(3, 3);
             this.checkBoxGraph.Name = "checkBoxGraph";
             this.checkBoxGraph.Size = new System.Drawing.Size(108, 21);

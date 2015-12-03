@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.IO;
 
 namespace WeedKiller2._0
 {
@@ -15,6 +16,9 @@ namespace WeedKiller2._0
         private volatile Position currentPosition;
         private const int SPRAY_TIME = 50; //ms
         private double SPRAY_RADIUS = 0.125;
+        private StreamWriter sprayLog;
+        private bool logFlag;
+        private string logFile;
 
         private List<Target> targetArray = new List<Target>();
 
@@ -31,12 +35,23 @@ namespace WeedKiller2._0
             sprayerPositions = Position.CalculateGlobalSprayerPositions(currentPosition);
         }
 
+        public void setupLogging(bool logFlag, string logFile = "")
+        {
+            this.logFlag = logFlag;
+            this.logFile = logFile;
+        }
+
         #endregion
 
         #region Sprayer Start & Stop Methods
 
         public String startSensors()
         {
+            if (logFlag)
+            {
+                sprayLog = new StreamWriter(logFile, true);
+                sprayLog.WriteLine("Spray Time,Sprayer Number,X Location,Y Location");
+            }
             String status = "Good";
             if (sprayerRelay.initConnection() != "Good")
             {
@@ -48,6 +63,10 @@ namespace WeedKiller2._0
         public void stopSensors()
         {
             sprayerRelay.closeConnection();
+            if (logFlag)
+            {
+                sprayLog.Close();
+            }
         }
 
         #endregion
@@ -128,6 +147,11 @@ namespace WeedKiller2._0
                 if (sprayersToEngage.Count() > 0)
                 {
                     DateTime t = DateTime.Now;
+                    for (int i = 0; i < sprayersToEngage.Count; i++)
+                    {
+                        int index = sprayersToEngage[i] - 1;
+                        sprayLog.WriteLine("{0},{1},{2},{3}", t.ToString("dd / MM / yyyy hh: mm:ss.fff"), sprayersToEngage[i], sprayerPositions[index].getXPosition(), sprayerPositions[index].getYPosition());
+                    }
                     sprayingList.Add(Task.Factory.StartNew(() => turnOnSprayers(sprayersToEngage)));
                 }
             }

@@ -64,6 +64,7 @@ namespace WeedKiller2._0
         // Sprayers
         private Sprayer sprayer;
         private List<Target> targetsToDraw;
+        private StreamWriter targetLog;
 
         #endregion
 
@@ -323,7 +324,10 @@ namespace WeedKiller2._0
                 imageHistory = new List<List<Image<Bgr, byte>>>();
                 imageLog = new StreamWriter(workingDirectory + "\\images" + directoryCount + ".csv", true);
                 imageLog.WriteLine("Time,Camera,Frame,Positive Windows,Negative Windows,Image Score,Image Label");
+                targetLog = new StreamWriter(workingDirectory + "\\target" + directoryCount + ".csv", true);
+                targetLog.WriteLine("Time,Camera,X Position,Y Position");
                 motionController.setupLogging(true, workingDirectory + "\\motion" + directoryCount + ".csv");
+                sprayer.setupLogging(true, workingDirectory + "\\spray" + directoryCount + ".csv");
             }            
             motionController.initConnection((string)comboBoxWSS.SelectedItem, (string)comboBoxIMU.SelectedItem);
             for (int i = 0; i < cameraCount; i++)
@@ -347,6 +351,7 @@ namespace WeedKiller2._0
             sprayer.stopSensors();
             if (checkBoxRecord.Checked)
             {
+                targetLog.Close();
                 imageLog.Close();
                 Thread saveImagesThread = new Thread(saveImageHistory);
                 saveImagesThread.Start();
@@ -550,6 +555,7 @@ namespace WeedKiller2._0
                 {
                     AppendLine(String.Format("Lantana found at camera: {0}", i + 1));
                     Target target = new Target(previousPosition, SERIAL_NUMBERS[i]);
+                    targetLog.WriteLine("{0},{1},{2},{3}", previousPosition.getTime().ToString("dd/MM/yyyy hh:mm:ss.fff"), i, previousPosition.getXPosition(), previousPosition.getYPosition());
                     targetsToDraw.Add(target);
                     sprayer.addTarget(target);
                 }

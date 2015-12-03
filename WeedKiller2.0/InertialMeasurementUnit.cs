@@ -91,7 +91,7 @@ namespace WeedKiller2._0
                         successful = true;
                     }
                 }
-                catch
+                catch (IOException)
                 {
                     
                 }
