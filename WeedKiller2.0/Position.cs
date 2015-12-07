@@ -65,7 +65,7 @@ namespace WeedKiller2._0
 
         public Position clone()
         {
-            return new Position(this.xPosition, this.yPosition);
+            return new Position(this.time, this.changeInTime, this.xPosition, this.yPosition, this.yaw);
         }
 
         static public Boolean isPositionWithinLimits(double xMin, double xMax, double yMin, double yMax, Position position)
